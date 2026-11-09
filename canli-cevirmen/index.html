@@ -85,8 +85,33 @@ $('clear').onclick = () => { srcLog.textContent = ''; dstLog.textContent = ''; $
 const speechLocale = code => LANGS.find(l => l[0] === code)[1];
 const setStatus = (msg, warn = false) => { statusEl.textContent = msg; statusEl.className = warn ? 'warn' : ''; };
 
-// Free MyMemory API: no key, CORS enabled, ~500 chars per request.
+// Gemini via server.py when GEMINI_API_KEY is set; otherwise free MyMemory API (~500 chars/request).
 const cache = new Map();
+const langName = code => LANGS.find(l => l[0] === code)[2];
+let geminiOn = false;
+fetch('/api/config').then(r => r.json()).then(c => {
+  geminiOn = !!c.gemini;
+  if (geminiOn) setStatus('Gemini ile çeviri aktif (' + c.model + ')');
+}).catch(() => {});
+
+async function myMemory(text, pair) {
+  const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.slice(0, 500)) +
+              '&langpair=' + encodeURIComponent(pair);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  if (data.responseStatus !== 200 && data.responseStatus !== '200') throw new Error(data.responseDetails || 'Çeviri hatası');
+  return decodeEntities(data.responseData.translatedText);
+}
+async function viaGemini(text) {
+  const res = await fetch('/api/translate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, from: langName(fromSel.value), to: langName(toSel.value) }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+  return data.translation;
+}
 async function translate(text) {
   text = text.trim();
   if (!text) return '';
@@ -94,13 +119,10 @@ async function translate(text) {
   if (fromSel.value === toSel.value) return text;
   const key = pair + '\n' + text;
   if (cache.has(key)) return cache.get(key);
-  const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.slice(0, 500)) +
-              '&langpair=' + encodeURIComponent(pair);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data = await res.json();
-  if (data.responseStatus !== 200 && data.responseStatus !== '200') throw new Error(data.responseDetails || 'Çeviri hatası');
-  const out = decodeEntities(data.responseData.translatedText);
+  let out;
+  if (geminiOn) {
+    try { out = await viaGemini(text); } catch { out = await myMemory(text, pair); }
+  } else out = await myMemory(text, pair);
   cache.set(key, out);
   return out;
 }

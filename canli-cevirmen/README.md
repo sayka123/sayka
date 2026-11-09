@@ -13,8 +13,11 @@ Mikrofon erişimi için sayfa `localhost` veya HTTPS üzerinden açılmalıdır:
 
 ```bash
 cd canli-cevirmen
-python3 -m http.server 8000
+export GEMINI_API_KEY=...   # https://aistudio.google.com/apikey (isteğe bağlı)
+python3 server.py           # http://localhost:8000
 ```
+
+`GEMINI_API_KEY` verilirse çeviri Gemini ile yapılır (`GEMINI_MODEL` ile model değiştirilebilir, varsayılan `gemini-2.5-flash`). Anahtar yalnızca sunucuda kalır. Anahtar yoksa veya Gemini hata verirse ücretsiz MyMemory'ye düşer.
 
 Ardından Chrome veya Edge ile http://localhost:8000 adresini açın ve mikrofon iznini verin.
 
