@@ -1,0 +1,29 @@
+.subtr-overlay {
+  position: fixed;
+  z-index: 2147483647;
+  display: none;
+  text-align: center;
+  pointer-events: none;
+  transform: translateY(-100%);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.3;
+}
+
+.subtr-line {
+  display: inline-block;
+  max-width: 90%;
+  padding: 0.15em 0.5em;
+  border-radius: 0.2em;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffd84d;
+  white-space: pre-wrap;
+}
+
+/* Lift the site's own captions so the translation sits beneath them. */
+.subtr-active .ytp-caption-window-container,
+.subtr-active .player-timedtext,
+.subtr-active .atvwebplayersdk-captions-overlay,
+.subtr-active .vjs-text-track-display,
+.subtr-active .jw-text-track-container {
+  transform: translateY(-2.6em);
+}
