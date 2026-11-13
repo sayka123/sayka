@@ -1,0 +1,23 @@
+name: CarPlay Video build
+
+on:
+  push:
+    paths: ["CarPlayVideo/**", ".github/workflows/carplay-video.yml"]
+  pull_request:
+    paths: ["CarPlayVideo/**", ".github/workflows/carplay-video.yml"]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: CarPlayVideo
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild -project CarPlayVideo.xcodeproj -target CarPlayVideo \
+            -sdk iphonesimulator -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO build
