@@ -1,0 +1,6 @@
+__pycache__/
+yedekler/
+build/
+dist/
+out/
+*.spec

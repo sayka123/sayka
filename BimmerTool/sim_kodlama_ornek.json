@@ -1,0 +1,29 @@
+[
+  {
+    "name": "Örnek: Karşılama ışıkları (yalnızca simülatör)",
+    "ecu": "0x72",
+    "did": "0x3000",
+    "byte": 2,
+    "mask": "0x01",
+    "options": {"Açık": "0x01", "Kapalı": "0x00"},
+    "note": "Simülatördeki sahte veri bloğu içindir. Gerçek araçta kullanmayın."
+  },
+  {
+    "name": "Örnek: Kilitlemede korna (yalnızca simülatör)",
+    "ecu": "0x72",
+    "did": "0x3000",
+    "byte": 3,
+    "mask": "0x03",
+    "options": {"Kapalı": "0x00", "Kısa": "0x01", "Uzun": "0x02"},
+    "note": "Simülatördeki sahte veri bloğu içindir. Gerçek araçta kullanmayın."
+  },
+  {
+    "name": "Örnek: Güvenlik kilitli ayar (yalnızca simülatör)",
+    "ecu": "0x78",
+    "did": "0x3100",
+    "byte": 0,
+    "mask": "0x01",
+    "options": {"Açık": "0x01", "Kapalı": "0x00"},
+    "note": "Güvenlik erişimi isteyen bir modülün nasıl reddettiğini gösterir."
+  }
+]
