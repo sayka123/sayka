@@ -64,6 +64,8 @@ def discover(target="255.255.255.255", port=DOIP_PORT, timeout=2.0):
                 data, addr = sock.recvfrom(4096)
             except socket.timeout:
                 continue
+            except ConnectionResetError:
+                continue  # Windows: ICMP port unreachable from a non-listening host
             if len(data) < 8 + 19:
                 continue
             _v, _iv, ptype, length = struct.unpack(">BBHI", data[:8])
