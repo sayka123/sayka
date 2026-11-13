@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Altyazı Çevirmeni",
+  "version": "1.0.0",
+  "description": "İzlediğiniz videoların altyazısını seçtiğiniz dile çevirip altyazının altında gösterir.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://translate.googleapis.com/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "Altyazı Çevirmeni" }
+}

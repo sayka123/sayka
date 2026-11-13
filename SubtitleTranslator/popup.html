@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: system-ui, sans-serif; width: 240px; margin: 12px; font-size: 14px; }
+    h1 { font-size: 15px; margin: 0 0 12px; }
+    label { display: block; margin-bottom: 10px; }
+    select { width: 100%; margin-top: 4px; padding: 4px; font-size: 14px; }
+    p { color: #666; font-size: 12px; margin: 8px 0 0; }
+  </style>
+</head>
+<body>
+  <h1>Altyazı Çevirmeni</h1>
+  <label><input type="checkbox" id="enabled"> Açık</label>
+  <label>Çeviri dili
+    <select id="target">
+      <option value="tr">Türkçe</option>
+      <option value="en">English</option>
+      <option value="de">Deutsch</option>
+      <option value="fr">Français</option>
+      <option value="es">Español</option>
+      <option value="it">Italiano</option>
+      <option value="pt">Português</option>
+      <option value="nl">Nederlands</option>
+      <option value="ru">Русский</option>
+      <option value="uk">Українська</option>
+      <option value="ar">العربية</option>
+      <option value="fa">فارسی</option>
+      <option value="az">Azərbaycanca</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+      <option value="zh-CN">中文 (简体)</option>
+    </select>
+  </label>
+  <p>Videonun kendi altyazısını açın; çevirisi altında sarı renkte görünür.</p>
+  <script src="popup.js"></script>
+</body>
+</html>
