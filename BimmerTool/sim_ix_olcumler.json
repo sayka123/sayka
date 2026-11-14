@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "name": "BMW iX40 EV measurements — SIMULATOR ONLY; fake ECU/DID addresses",
+  "simulator_only": true,
+  "signals": [
+    {"key": "soc", "name": "State of charge", "unit": "%", "ecu": 7, "did": 53249, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0},
+    {"key": "voltage", "name": "Battery voltage", "unit": "V", "ecu": 7, "did": 53250, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0},
+    {"key": "current", "name": "Battery current", "unit": "A", "ecu": 7, "did": 53251, "offset": 0, "length": 2, "byteorder": "big", "signed": true, "scale": 0.1, "add": 0},
+    {"key": "temperature", "name": "Battery temperature", "unit": "°C", "ecu": 7, "did": 53252, "offset": 0, "length": 2, "byteorder": "big", "signed": true, "scale": 0.1, "add": 0},
+    {"key": "charge_power", "name": "Charge power", "unit": "kW", "ecu": 7, "did": 53253, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0},
+    {"key": "soh", "name": "State of health", "unit": "%", "ecu": 7, "did": 53254, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0}
+  ]
+}
