@@ -45,8 +45,12 @@ class UdsClient:
 
     def _request(self, ecu, data, timeout=None):
         resp = self.conn.request(ecu, data, timeout=timeout)
+        if not resp:
+            raise ProtocolError("boş yanıt")
         if resp[0] == 0x7F:
-            raise NegativeResponse(resp[1], resp[2] if len(resp) > 2 else 0)
+            if len(resp) < 3 or resp[1] != data[0]:
+                raise ProtocolError(f"geçersiz negatif yanıt: {resp.hex(' ')}")
+            raise NegativeResponse(resp[1], resp[2])
         if resp[0] != data[0] + 0x40:
             raise ProtocolError(f"beklenmeyen yanıt: {resp.hex(' ')}")
         return resp
@@ -65,7 +69,9 @@ class UdsClient:
             return True
 
     def session(self, ecu, session):
-        self._request(ecu, bytes([0x10, session]))
+        resp = self._request(ecu, bytes([0x10, session]))
+        if len(resp) < 2 or resp[1] != session:
+            raise ProtocolError(f"yanlış oturum yanıtı: {resp.hex(' ')}")
 
     def read_did(self, ecu, did, timeout=None):
         resp = self._request(ecu, struct.pack(">BH", 0x22, did), timeout=timeout)
@@ -74,16 +80,24 @@ class UdsClient:
         return resp[3:]
 
     def write_did(self, ecu, did, data):
-        self._request(ecu, struct.pack(">BH", 0x2E, did) + bytes(data))
+        resp = self._request(ecu, struct.pack(">BH", 0x2E, did) + bytes(data))
+        if len(resp) < 3 or struct.unpack(">H", resp[1:3])[0] != did:
+            raise ProtocolError(f"yanlış kimlik yanıtı: {resp.hex(' ')}")
 
     def read_dtcs(self, ecu, status_mask=0x0C):
         resp = self._request(ecu, bytes([0x19, 0x02, status_mask]))
+        if len(resp) < 3 or resp[1] != 0x02:
+            raise ProtocolError(f"yanlış DTC yanıt başlığı: {resp.hex(' ')}")
         records = resp[3:]
+        if len(records) % 4:
+            raise ProtocolError(f"kesik DTC kaydı: {resp.hex(' ')}")
         dtcs = []
-        for i in range(0, len(records) - len(records) % 4, 4):
+        for i in range(0, len(records), 4):
             code = int.from_bytes(records[i:i + 3], "big")
             dtcs.append((code, records[i + 3]))
         return dtcs
 
     def clear_dtcs(self, ecu):
-        self._request(ecu, b"\x14\xFF\xFF\xFF", timeout=5.0)
+        resp = self._request(ecu, b"\x14\xFF\xFF\xFF", timeout=5.0)
+        if resp != b"\x54":
+            raise ProtocolError(f"yanlış silme onayı: {resp.hex(' ')}")
