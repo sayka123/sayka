@@ -1,13 +1,40 @@
 # BimmerTool
 
+## 0.2.0 — doğruluk ve kullanım güncellemesi
+
+- Boş, kesilmiş veya yanlış servis/adres yanıtları başarı sayılmaz; protokol
+  hatası olarak bildirilir. Eksik hata kodu kayıtları sessizce atılmaz.
+- Hata kodu silme sonucu her modül için onay/ret olarak raporlanır. Kısmi
+  başarısızlık artık “hepsi silindi” şeklinde gösterilmez. Sonrasında hata
+  kodlarını yeniden okuyun; silme onayı arızanın giderildiğini göstermez.
+- Yedekten dönüş, bağlı VIN ile yedekteki VIN eşleşmedikçe başlamaz. VIN'siz
+  eski yedekler otomatik geri yüklenmez. VIN eşleşmesi tek başına yazılım
+  uyumluluğunu garanti etmez.
+- Genişletilmiş teşhis oturumu reddedilirse yazma denenmez. Koşul/yazma
+  hataları artık imzalı kodlama gereksinimine ilişkin kanıt gibi sunulmaz.
+- Son EV ölçümleri zaman, kaynak, birim, ham veri ve hata ile CSV'ye aktarılır.
+  Dosya VIN alanı içermez; ham veriler yine özel bilgi içerebilir.
+- Mac başlatıcısı Python sürümünü ve Tkinter varlığını açılıştan önce kontrol eder.
+
+Bu sürümde de HU_MGU4 FDL/NCD yazma, gerçek iX40 ölçüm veritabanı veya otomatik
+yazılım güncelleme yoktur. Paket sürümü, aracın yazılımının güncel olduğunu
+göstermez. Eski BimmerCode PDF raporundaki I-Level canlı araç verisi olarak
+uygulamaya gömülmez; rapor ve lisans bilgileri indirme paketinde bulunmaz.
+
 BMW'lere ENET kablosuyla bağlanan Windows / Mac / Linux masaüstü programı. Şunları yapar:
+
+Arayüz koyu tema, sol gezinme menüsü ve ayrı bağlantı kartları kullanır.
+Bağlantı ekranında VIN, protokol ve son taramada bulunan modül sayısı gösterilir.
+Üstteki **SİMÜLATÖR** etiketi demo bağlantısını gerçek araçtan ayırır.
+Kodlama ve hata kodu silme gibi işlemlerin onayları korunmuştur.
+Ek arayüz paketi gerekmez; Python'un Tkinter bileşeni kullanılır.
 
 | Özellik | F/G serisi (≈2008–2021) | iX, i4 ve yeni nesil (2021+) |
 |---|---|---|
 | Aracı bulma, şasi numarası okuma | ✅ (HSFZ, port 6801) | ✅ (DoIP, port 13400) |
 | Modül tarama | ✅ | ✅ |
 | Hata kodu okuma / silme | ✅ | ✅ |
-| Canlı veri | ✅ Motor devri, hız, sıcaklıklar, yük, voltaj | ⚠️ Motor modülü yok; batarya/motor değerleri için modül + DID'i kendiniz eklersiniz |
+| Canlı veri | Motor devri, hız, sıcaklıklar, yük, voltaj | Profil tabanlı EV paneli; gerçek ölçüm tanımları ayrıca gerekir |
 | Kodlama (yedekli, doğrulamalı) | ✅ Kodlama listesi dosyasıyla | ❌ Çoğu modül yalnızca BMW imzalı kodlamayı kabul eder (aşağıya bakın) |
 
 ## Gerekenler
@@ -19,6 +46,12 @@ BMW'lere ENET kablosuyla bağlanan Windows / Mac / Linux masaüstü programı. �
 
 ## Kurulum
 
+**Kolay açılış (Python kuruluysa):** ZIP'i yeni bir klasöre tamamen çıkartın.
+Mac'te `Mac-Baslat.command`, Windows'ta `Windows-Baslat.bat` dosyasına çift
+tıklayın. Kod dosyasını düzenlemeniz gerekmez. Bunlar bağımsız EXE veya Mac
+uygulaması değil, Python başlatıcılarıdır. Mac güvenlik uyarısı verirse korumayı
+kapatmayın; uyarı metnini paylaşın.
+
 **Hazır Windows programı:** GitHub'da *Actions → BimmerTool → son başarılı çalışma → Artifacts → BimmerTool-windows* dosyasını indirin, zipten çıkarın ve `BimmerTool.exe` dosyasını çalıştırın.
 
 **Python ile (her işletim sistemi):** Python 3.10 veya daha yenisi gerekir, ek paket gerekmez.
@@ -29,17 +62,107 @@ python BimmerTool.py
 
 ## Kullanım
 
-1. **Bağlantı:** *Aracı otomatik bul* → *Bağlan*. Program aracın HSFZ mi DoIP mi kullandığını kendisi seçer.
+1. **Bağlantı:** Araç seçimini yapın → *Aracı otomatik bul* → *Bağlan*. iX40 seçiminde DoIP kullanılır; F/G seçiminde bulunan protokol denenir. Araç seçimi VIN'den model doğrulaması değildir.
 2. **Modüller:** *Modülleri tara* bilinen modül adreslerini dener. *Tüm adresleri tara* daha yavaş ama hepsini bulur.
 3. **Hata Kodları:** Bulunan modüllerin hata kodlarını okur ve isterseniz siler.
 4. **Canlı Veri:** *Başlat* ile değerler saniyede yaklaşık iki kez güncellenir. Özel bir değer için modül adresini ve DID'i girip *Ekle*'ye basın; ham değer gösterilir.
 5. **Kodlama:** Bir kodlama listesi (`.json`) yükleyin, *Mevcut değerleri oku*, bir ayar ve yeni değer seçip *Kodla*.
    - Her yazmadan önce eski değer `yedekler/` klasörüne kaydedilir. *Yedekten geri yükle* ile geri alabilirsiniz.
    - Yazdıktan sonra değer tekrar okunup doğrulanır.
+   - Geçersiz adres/maske/seçenekler, boş veya farklı uzunlukta veri ve okuma
+     sırasında değişen bloklar için yazma başlatılmaz. Yedek alınamazsa yazılmaz.
+     Bu kontroller tanımın gerçek araç için doğru olduğunu kanıtlamaz.
 
 Araç olmadan denemek için *Bağlantı* sekmesindeki **simülatör** düğmelerini kullanın: biri benzinli F/G serisi, biri elektrikli iX gibi davranır.
 
+### iX40 / elektrikli araç çalışma alanı
+
+Varsayılan seçim **BMW iX40 / elektrikli** modudur. Bu modda benzinli motor canlı
+verileri gizlenir ve standart motor ölçüm istekleri gönderilmez. Varsayılan modül
+taraması yanmalı motor, yakıt pompası ve klasik şanzıman adaylarını atlar.
+**Tüm adresleri tara** seçeneği bu filtreyi kaldırır. Modül adları genel aday
+etiketleridir; tüm iX ünitelerinin tam veya doğrulanmış listesi değildir.
+
+**iX / Elektrikli** bölümünde şarj seviyesi (SOC), batarya gerilimi/akımı,
+sıcaklık, şarj gücü ve SOH gibi ölçümler profil ile okunur. **Şimdi oku** tek
+okuma yapar; **İzlemeyi başlat** her okuma bittikten yaklaşık iki saniye sonra
+yeniler. Hatalı/desteklenmeyen ölçüm sıfır yerine boş değer ve hata mesajıyla
+gösterilir. Her okumanın zamanı görünür. SOH gösterimi servis batarya sağlık
+testi, hücre dengeleme veya kullanılabilir kapasite hesabı değildir.
+
+**Demoyu denemek için:** Bağlantı → iX simülatörü → iX / Elektrikli → iX demo
+profili. `sim_ix_olcumler.json` tamamen sentetik adres ve değerler kullanır.
+Demo profili gerçek bağlantıda reddedilir. Yeniden bağlantıda profil, eski
+ölçümler, özel ham okuma adresleri, hata kayıtları ve kodlama listesi temizlenir.
+
+**Gerçek iX40 için:** Bu pakette doğrulanmış BMW batarya/şarj DID veritabanı
+yoktur. Yalnızca sizin araç ve yazılımınız için doğrulanmış, kullanma hakkınız
+olan ölçüm profillerini yükleyin. Etiketleri değiştirip demo adreslerini gerçek
+araçta denemeyin. Profil yüklemek adresin veya ölçeklemenin doğruluğunu kanıtlamaz.
+
+**Teşhis raporunu kaydet**, mevcut bağlantıda son okunan EV değerleri, tarama
+adresleri ve hata kodlarını zamanlarıyla yerel JSON'a aktarır; yeni tarama yapmaz.
+Okunamayan modüller raporda hata olarak, hiç yapılmamış okumalar zaman bilgisi
+olmadan gösterilir. VIN varsayılan olarak eklenmez; **Rapora VIN ekle** ile
+açılabilir. Ham ölçüm verileri de kimlik bilgisi içerebilir; raporu paylaşmadan
+önce inceleyin. Tam servis teşhisi veya tüm modüllerin sağlıklı olduğuna dair
+belge değildir.
+
+#### Ölçüm profili biçimi (kodlama listesinden farklıdır)
+
+Profil alanları: `version` (1), `name`, `simulator_only` (boolean), isteğe bağlı
+`vin` ve boş olmayan `signals` listesi. Her sinyalde benzersiz `key`, `name`,
+`unit`, sayısal `ecu` ve `did`, `offset`, `length`, `byteorder` (`big`/`little`),
+`signed` (boolean), `scale` ve `add` zorunludur. Değer, seçilen baytların tamsayı
+karşılığı × `scale` + `add` ile hesaplanır. Bu profiller yalnızca okuma yapar;
+çalıştırılabilir kod içermez. VIN belirtilmişse eşleşmeyen veya VIN'i okunamayan
+bağlantıda sorgu başlatılmaz. Kartlar için `soc`, `charge_power`, `temperature`
+anahtarları kullanılır; diğer ölçümler tabloda görünür.
+
+Yüksek voltaj kontaktörü kumandası, şarj başlatma/durdurma, batarya yazılımı
+yazma, güç artırma veya imza/güvenlik korumasını aşma eklenmemiştir. Programın
+gerçek iX40 ve macOS üzerindeki uçtan uca çalışması henüz doğrulanmamıştır.
+
+### Keşif: salt okunur kayıt ve karşılaştırma
+
+**Keşif** sekmesinde modül adreslerini (örneğin `0x10, 0x40`) ve bilinen DID
+aralığını girerek **Kayıt al** düğmesiyle JSON kaydedebilirsiniz. Modül alanı boşsa
+Modüller sekmesinde bulunan adresler kullanılır. Varsayılan DID `0xF190` şasi
+numarası okumasıdır; gizli özellik veya kodlama adresi değildir.
+
+**İki kaydı karşılaştır** ortak veri bloklarındaki bayt farklarını gösterir.
+Yalnızca bir kayıtta bulunan bloklar bu karşılaştırmaya dahil değildir. Farklı
+şasi numaraları için uyarı gösterilir. Kaydedilen dosyalar VIN ve ham araç
+verilerini içerir; paylaşmadan önce kişisel bilgileri temizleyin.
+
+Bu sekme yalnızca okuma isteği gönderir. Bir baytın değişmesi, belirli bir ayarı
+kontrol ettiğini veya o adrese yazmanın güvenli olduğunu **kanıtlamaz**. Bu nedenle
+farklardan otomatik kodlama listesi üretilmez. Güvenlik erişimini veya imza
+kontrolünü zorlama yoktur. Gerçek iX40 uyumluluğu doğrulanmamıştır; testler
+HSFZ ve iX benzeri DoIP simülatöründe yapılır.
+
 ## Kodlama listesi formatı
+
+### Bildirilen hedef: 2022 BMW iX40 / HU_MGU4
+
+Bu model yılı ve ünite adı kullanıcı bildirimidir, bağlantıdan doğrulanmış kimlik
+değildir. Kodlama ekranında bu hedef ve destek sınırı açıkça gösterilir.
+Program şu anda **HU_MGU4 FDL/NCD çözümleme veya yazma desteği içermez**.
+Mevcut yöntem, UDS ReadDataByIdentifier / WriteDataByIdentifier üzerinden genel
+DID bloklarına bit değişikliği yapar; BMW FDL/NCD kodlamasının yerine geçmez.
+Fotoğraflardaki `3000 HMI_SPEECH` ve `3013 AUGMENTED_REALITY` gibi FDL bölüm
+başlıkları, doğrudan yazılacak DID adresleri olarak kullanılamaz.
+
+Ünite adını seçmek veya menüye ayar adlarını eklemek gerçek kodlama desteği
+sağlamaz. Uygun desteği değerlendirmek için ünitenin tam adı, CAFD kimliği ve
+sürümü, araç yazılım seviyesi (I-Step) ve açılmak istenen belirli ayar gerekir.
+Ürünün lisans anahtarını veya VIN'i paylaşmak gerekmez. Bu bilgiler elde edilse
+bile gerçek araca uygun çözümleme, yazma yöntemi ve doğrulama ayrıca gereklidir.
+
+Kaynaklar: [BimmerUtility FDL/NCD açıklaması](https://www.bimmerutility.com/fdl-editor),
+[iX için sınırlı destek bildirimi](https://bimmercode.app/cars/bmw/ix/i20/).
+
+### Genel DID listesi
 
 ```json
 [
@@ -62,7 +185,7 @@ Program yalnızca `mask` içindeki bitleri değiştirir, aynı bayttaki diğer b
 ## BMW iX hakkında önemli notlar
 
 - **Bağlantı, tarama, hata kodları:** Çalışması beklenir; iX, DoIP protokolüyle konuşur.
-- **Kodlama:** 2021 ortasından sonraki BMW'lerde (iX dahil) modüllerin çoğu yalnızca BMW'nin o şasi numarası için **imzaladığı** kodlamayı kabul eder (Secure Coding / NCD 2.0). Bu yüzden imzasız yazma reddedilir. Program bu durumda araçta hiçbir şeyi değiştirmeden açık bir hata mesajı gösterir. Sahiplerin bildirdiğine göre iX'te yerel olarak kodlanabilen modül çok azdır.
+- **Kodlama:** 2021 ortasından sonraki BMW'lerde (iX dahil) modüllerin çoğu yalnızca BMW'nin o şasi numarası için **imzaladığı** kodlamayı kabul eder (Secure Coding / NCD 2.0). Bu yüzden imzasız yazma reddedilir. Program ret yanıtını bildirir; bu yanıt tek başına aracın tüm durumunun değişmediğini kanıtlamaz. Sahiplerin bildirdiğine göre iX'te yerel olarak kodlanabilen modül çok azdır.
 - **Güç / performans artışı:** Bu program elektrik motoru gücünü artırmaz. Motor gücü kodlama ile değil, BMW'nin imzaladığı sürüş ünitesi yazılımıyla belirlenir; BMW'nin sattığı resmi güç yükseltmeleri de ücretli lisansla açılır. Bu korumaları aşmak garanti, yüksek voltaj güvenliği ve yasal açıdan ciddi risk taşır.
 
 ## Geliştirici
