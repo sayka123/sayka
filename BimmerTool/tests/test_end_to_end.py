@@ -68,7 +68,7 @@ class EndToEnd(unittest.TestCase):
             self.assertEqual(self.uds.read_did(0x72, 0x3000), bytes([0x10, 0x00, 0x00, 0x00]))
             coding.apply(self.uds, horn, "Uzun", d)
             self.assertEqual(coding.read_current(self.uds, horn), "Uzun")
-            coding.restore(self.uds, backup, d)
+            coding.restore(self.uds, backup, d, vin=SIM_VIN)
             self.assertEqual(self.uds.read_did(0x72, 0x3000), bytes([0x10, 0x00, 0x01, 0x00]))
             with self.assertRaises(NegativeResponse) as ctx:
                 coding.apply(self.uds, secured, "Açık", d)
