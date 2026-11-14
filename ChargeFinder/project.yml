@@ -1,0 +1,19 @@
+name: ChargeFinder
+options:
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  ChargeFinder:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    info:
+      path: Resources/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.ChargeFinder
+        PRODUCT_NAME: ChargeFinder
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Yakındaki elektrikli araç şarj istasyonlarını bulmak için konumunuz kullanılır."
