@@ -4,10 +4,11 @@ import os
 import queue
 import sys
 import threading
+import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from . import __version__, coding, livedata, transport
+from . import __version__, coding, livedata, snapshot, transport
 from .ecus import ECU_NAMES, ecu_name
 from .uds import UdsClient, format_dtc
 
@@ -56,6 +57,7 @@ class App(tk.Tk):
         self._build_dtc_tab()
         self._build_live_tab()
         self._build_coding_tab()
+        self._build_discovery_tab()
 
         self.after(100, self._poll_results)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -506,6 +508,100 @@ class App(tk.Tk):
         self.run_bg(lambda: coding.write_block(self.uds, ecu, did, data, self.backup_dir, self.vin),
                     lambda b: self.status.set(f"Yazıldı ve doğrulandı (yedek: {os.path.basename(b)})"),
                     "Yazılıyor...")
+
+    # ---- discovery (read-only) ------------------------------------------
+    def _build_discovery_tab(self):
+        f = ttk.Frame(self.tabs, padding=10)
+        self.tabs.add(f, text="Keşif")
+        ttk.Label(f, foreground="#555", wraplength=820, justify="left", text=(
+            "Salt okunur veri karşılaştırması: Kayıt alın, sonra ikinci kayıtla karşılaştırın. "
+            "Farklar kodlama adresini veya bir ayarla bağlantıyı kanıtlamaz. Varsayılan DID şasi numarasıdır. "
+            "Yalnızca aracınız için bilinen adresleri kullanın. Bu sekme araca yazmaz.")
+        ).pack(fill="x")
+        opts = ttk.Frame(f)
+        opts.pack(fill="x", pady=6)
+        self.snap_ecus = tk.StringVar()
+        self.snap_from = tk.StringVar(value=f"0x{snapshot.DEFAULT_RANGE[0]:04X}")
+        self.snap_to = tk.StringVar(value=f"0x{snapshot.DEFAULT_RANGE[1]:04X}")
+        ttk.Label(opts, text="Modüller (boş = bulunanlar)").pack(side="left")
+        ttk.Entry(opts, textvariable=self.snap_ecus, width=22).pack(side="left", padx=(4, 10))
+        ttk.Label(opts, text="DID").pack(side="left")
+        ttk.Entry(opts, textvariable=self.snap_from, width=7).pack(side="left", padx=2)
+        ttk.Label(opts, text="-").pack(side="left")
+        ttk.Entry(opts, textvariable=self.snap_to, width=7).pack(side="left", padx=2)
+        self.snap_progress = ttk.Progressbar(opts, length=180)
+        self.snap_progress.pack(side="right")
+
+        bar = ttk.Frame(f)
+        bar.pack(fill="x")
+        ttk.Button(bar, text="Kayıt al...", command=self.on_snapshot).pack(side="left")
+        ttk.Button(bar, text="İki kaydı karşılaştır...", command=self.on_diff).pack(side="left", padx=6)
+        self.diff_tree = self._tree(f, ("ecu", "did", "change"), ("Modül", "DID", "Değişiklik"),
+                                    (260, 90, 380))
+        self._changes = []
+
+    def _snapshot_targets(self):
+        text = self.snap_ecus.get().replace(",", " ").split()
+        ecus = [int(t, 0) for t in text] if text else list(self.found_ecus)
+        did_range = (int(self.snap_from.get(), 0), int(self.snap_to.get(), 0))
+        snapshot.validate_targets(ecus, did_range)
+        return ecus, did_range
+
+    def on_snapshot(self):
+        if not self.require_connection():
+            return
+        try:
+            ecus, did_range = self._snapshot_targets()
+        except ValueError as e:
+            messagebox.showerror("Hatalı giriş", f"Modül ve DID değerlerini 0x72 gibi yazın.\n{e}")
+            return
+        if not ecus:
+            messagebox.showwarning("Modül yok", "Önce Modüller sekmesinde tarama yapın veya modül adresi girin.")
+            return
+        os.makedirs(self.backup_dir, exist_ok=True)
+        path = filedialog.asksaveasfilename(
+            initialdir=self.backup_dir, defaultextension=".json", filetypes=[("Kayıt", "*.json")],
+            initialfile=f"kayit_{time.strftime('%Y%m%d-%H%M%S')}.json")
+        if not path:
+            return
+
+        def progress(done, total, _ecu):
+            self._results.put((lambda v: self.snap_progress.configure(maximum=total, value=v), done, None))
+
+        def work():
+            snap = snapshot.take_snapshot(self.uds, ecus, did_range, progress=progress)
+            snapshot.save(path, snap, self.vin)
+            return snap
+
+        def done(snap):
+            self.snap_progress.configure(value=self.snap_progress["maximum"])
+            count = sum(len(b) for b in snap.values())
+            self.status.set(f"Kayıt alındı: {len(snap)} modül, {count} veri bloğu")
+
+        self.run_bg(work, done, "Kayıt alınıyor (yalnızca okuma)...")
+
+    def on_diff(self):
+        first = filedialog.askopenfilename(title="Önceki kayıt", initialdir=self.backup_dir,
+                                           filetypes=[("Kayıt", "*.json")])
+        if not first:
+            return
+        second = filedialog.askopenfilename(title="Sonraki kayıt", initialdir=self.backup_dir,
+                                            filetypes=[("Kayıt", "*.json")])
+        if not second:
+            return
+        try:
+            (a, vin_a), (b, vin_b) = snapshot.load(first), snapshot.load(second)
+        except Exception as e:
+            messagebox.showerror("Kayıt okunamadı", str(e))
+            return
+        if vin_a and vin_b and vin_a != vin_b:
+            messagebox.showwarning("Farklı araç", "Bu iki kayıt farklı şasi numaralarına ait.")
+        self._changes = snapshot.diff(a, b)
+        self.diff_tree.delete(*self.diff_tree.get_children())
+        for i, c in enumerate(self._changes):
+            self.diff_tree.insert("", "end", iid=str(i),
+                                  values=(ecu_name(c.ecu), f"0x{c.did:04X}", c.describe()))
+        self.status.set(f"Ortak veri bloklarında {len(self._changes)} fark bulundu; kodlama tanımı değildir")
 
     # ---- helpers -------------------------------------------------------
     def _tree(self, parent, cols, headings, widths, height=None):
