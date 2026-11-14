@@ -1,0 +1,29 @@
+BIMMERTOOL - KOLAY ACILIS
+
+SURUM 0.4.0
+Baglanti testi: Baglanti ekranindan baglandiktan sonra Baglanti testi dugmesine basin.
+Bu test yalnizca VIN okur; modullerin ret, gecersiz yanit ve surelerini ayirir.
+Demo testi gercek araciniza baglanildigini kanitlamaz. Tum korumalar kaldirilmaz.
+Olcum gecmisi: bu oturumdaki son 300 EV okumasi, trend ve CSV disari aktarma.
+Islem gunlugu: son 200 durum mesaji, yalnizca bellekte tutulur.
+Yeni Mac yedekleri: ~/Library/Application Support/BimmerTool/yedekler
+Eski yedek klasorunuz silinmez; geri yukleme penceresinden elle secilebilir.
+
+1. ZIP dosyasini tamamen cikartin. Eski klasorun uzerine degil, yeni bir yere cikartin.
+2. Mac: Mac-Baslat.command dosyasina cift tiklayin.
+   Windows: Windows-Baslat.bat dosyasina cift tiklayin.
+3. Python kodunu acmaniz veya degistirmeniz gerekmez.
+
+Python 3.10 veya uzeri kurulu olmalidir. Bu paket bagimsiz EXE veya Mac uygulamasi degildir.
+Mac guvenlik uyarisi gorurseniz engeli kapatmayin; uyari metnini paylasin.
+Hata olursa acik kalan terminal penceresinin ekran goruntusunu paylasin.
+
+Once F/G simulatoru ile deneyin. sim_kodlama_ornek.json yalnizca simulator icindir.
+Gercek iX40'ta gizli ozellik acma dogrulanmamistir.
+
+ELEKTRIKLI iX DEMOSU
+Baglanti -> iX simulatoru -> iX / Elektrikli -> iX demo profili.
+Batarya doluluk orani, gerilim, akim, sicaklik, sarj gucu ve SOH sentetik verilerdir.
+sim_ix_olcumler.json gercek aracta kullanilamaz. Arac icin dogrulanmis olcum
+profili gerekir; pakette gercek iX40 batarya/sarj adresleri bulunmaz.
+Teshis raporu son okunan verileri kaydeder; VIN eklemek istege baglidir.

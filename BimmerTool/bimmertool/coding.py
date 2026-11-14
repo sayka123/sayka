@@ -14,7 +14,7 @@ import time
 from .uds import EXTENDED_SESSION, NegativeResponse
 
 
-SECURE_CODING_NRCS = {0x22, 0x33, 0x35, 0x72}
+SECURE_CODING_NRCS = {0x33, 0x35}
 
 
 class CodingRejected(NegativeResponse):
@@ -22,7 +22,7 @@ class CodingRejected(NegativeResponse):
         super().__init__(sid, nrc)
         self.args = (self.args[0] + ". Bu modül yalnızca BMW tarafından araç şasisine özel imzalanmış "
                      "kodlamayı kabul ediyor olabilir (Secure Coding / NCD 2.0, 2021 sonrası araçlar, "
-                     "örn. iX). Araçta hiçbir değişiklik yapılmadı.",)
+                     "örn. iX). Yazma reddedildi; işlemi zorlayarak tekrarlamayın.",)
 
 
 def _int(v):
@@ -38,6 +38,10 @@ class CodingDefinition:
         self.mask = _int(d.get("mask", "0xFF"))
         self.options = {k: _int(v) for k, v in d["options"].items()}
         self.note = d.get("note", "")
+        if not 0 <= self.ecu <= 0xFFFF or not 0 <= self.did <= 0xFFFF:
+            raise ValueError(f"{self.name}: modül ve DID 0x0000–0xFFFF içinde olmalı")
+        if self.byte < 0 or not 1 <= self.mask <= 0xFF or not self.options:
+            raise ValueError(f"{self.name}: bayt, maske veya seçenekler geçersiz")
         for label, value in self.options.items():
             if value & ~self.mask:
                 raise ValueError(f"{self.name}: '{label}' değeri maskenin dışında")
@@ -52,6 +56,9 @@ class CodingDefinition:
         return f"bilinmeyen (0x{value:02X})"
 
     def apply_to(self, block, label):
+        self.current_label(block)
+        if label not in self.options:
+            raise ValueError(f"{self.name}: bilinmeyen seçenek '{label}'")
         new = bytearray(block)
         new[self.byte] = (new[self.byte] & ~self.mask & 0xFF) | self.options[label]
         return bytes(new)
@@ -81,16 +88,20 @@ def save_backup(backup_dir, ecu, did, data, vin=None):
     return path
 
 
-def write_block(client, ecu, did, data, backup_dir, vin=None):
+def write_block(client, ecu, did, data, backup_dir, vin=None, expected=None):
     """Back up the current block, write the new one and verify it. Returns the backup path."""
+    if not 0 <= ecu <= 0xFFFF or not 0 <= did <= 0xFFFF:
+        raise ValueError("Modül ve DID 0x0000–0xFFFF içinde olmalı")
+    data = bytes(data)
     old = client.read_did(ecu, did)
+    if expected is not None and old != expected:
+        raise ValueError("Veri okuma sonrasında değişti; yeniden okuyup işlemi başlatın")
+    if not data or len(data) != len(old):
+        raise ValueError("Yazılacak veri boş olamaz ve okunan blokla aynı uzunlukta olmalı")
     backup = save_backup(backup_dir, ecu, did, old, vin)
     if old == bytes(data):
         return backup
-    try:
-        client.session(ecu, EXTENDED_SESSION)
-    except NegativeResponse:
-        pass  # some modules accept writes in the default session
+    client.session(ecu, EXTENDED_SESSION)
     try:
         client.write_did(ecu, did, data)
     except NegativeResponse as e:
@@ -108,11 +119,13 @@ def write_block(client, ecu, did, data, backup_dir, vin=None):
 def apply(client, definition, label, backup_dir, vin=None):
     block = client.read_did(definition.ecu, definition.did)
     return write_block(client, definition.ecu, definition.did,
-                       definition.apply_to(block, label), backup_dir, vin)
+                       definition.apply_to(block, label), backup_dir, vin, expected=block)
 
 
-def restore(client, backup_path, backup_dir):
+def restore(client, backup_path, backup_dir, vin=None):
     with open(backup_path, encoding="utf-8") as f:
         b = json.load(f)
+    if not vin or not b.get("vin") or b["vin"] != vin:
+        raise ValueError("Geri yükleme için bağlı aracın VIN'i ile yedekteki VIN eşleşmeli")
     return write_block(client, _int(b["ecu"]), _int(b["did"]),
-                       bytes.fromhex(b["data"]), backup_dir, b.get("vin"))
+                       bytes.fromhex(b["data"]), backup_dir, vin)
