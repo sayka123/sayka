@@ -54,13 +54,15 @@ def parse_ident(payload):
     }
 
 
-def discover(target="255.255.255.255", port=DISCOVERY_PORT, timeout=2.0):
+def discover(target="255.255.255.255", port=DISCOVERY_PORT, timeout=2.0, source_ip=None):
     """Broadcast a vehicle identification request; returns [{ip, vin, ...}]."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.settimeout(0.2)
     found = {}
     try:
+        if source_ip:
+            sock.bind((source_ip, 0))
         sock.sendto(build_frame(CTRL_VEHICLE_IDENT), (target, port))
         end = time.monotonic() + timeout
         while time.monotonic() < end:
@@ -114,6 +116,9 @@ class HsfzConnection:
         while True:
             if len(self._buf) >= 6:
                 length, control = struct.unpack(">IH", self._buf[:6])
+                if length > 1024 * 1024:
+                    self.close()
+                    raise HsfzError("HSFZ çerçeve uzunluğu sınırı aşıldı")
                 if len(self._buf) >= 6 + length:
                     payload = self._buf[6:6 + length]
                     self._buf = self._buf[6 + length:]
@@ -126,6 +131,9 @@ class HsfzConnection:
                 chunk = self.sock.recv(65536)
             except socket.timeout:
                 raise NoResponse("yanıt yok")
+            except OSError:
+                self.close()
+                raise
             if not chunk:
                 self.close()
                 raise HsfzError("araç bağlantıyı kapattı")
@@ -150,6 +158,7 @@ class HsfzConnection:
 
             self.sock.sendall(build_frame(CTRL_DIAG, bytes([self.tester, ecu]) + bytes(data)))
             deadline = time.monotonic() + timeout
+            pending_limit = time.monotonic() + max(timeout, 15.0)
             while True:
                 control, payload = self._recv_frame(deadline)
                 if control == CTRL_ACK or control == CTRL_ALIVE_CHECK:
@@ -162,7 +171,9 @@ class HsfzConnection:
                     continue
                 resp = payload[2:]
                 # 0x78 = response pending: the ECU needs more time.
-                if resp[0] == 0x7F and len(resp) >= 3 and resp[2] == 0x78:
-                    deadline = time.monotonic() + max(timeout, 5.0)
+                if resp[0] == 0x7F and len(resp) >= 3 and resp[1] == data[0] and resp[2] == 0x78:
+                    if time.monotonic() >= pending_limit:
+                        raise NoResponse("Yanıt bekleme toplam süre sınırı aşıldı; yazma otomatik tekrarlanmadı")
+                    deadline = min(pending_limit, time.monotonic() + max(timeout, 5.0))
                     continue
                 return resp
