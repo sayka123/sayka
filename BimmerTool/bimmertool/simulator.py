@@ -101,7 +101,14 @@ def build_ix():
     vin = SIM_IX_VIN.encode()
     return {
         0x10: FakeEcu({0xF190: vin}),
-        0x07: FakeEcu({0x1234: bytes([0x4E])}, dtcs=[(0x21F0A1, 0x08)]),  # SME, fake value
+        # Synthetic EV readings. These DIDs are not real BMW definitions.
+        0x07: FakeEcu({0x1234: bytes([0x4E]),
+                       0xD001: (784).to_bytes(2, "big"),
+                       0xD002: (3825).to_bytes(2, "big"),
+                       0xD003: (-125).to_bytes(2, "big", signed=True),
+                       0xD004: (263).to_bytes(2, "big", signed=True),
+                       0xD005: (110).to_bytes(2, "big"),
+                       0xD006: (963).to_bytes(2, "big")}, dtcs=[(0x21F0A1, 0x08)]),
         0x40: FakeEcu({0xF190: vin}),
         0x60: FakeEcu(),
         0x63: FakeEcu(),
