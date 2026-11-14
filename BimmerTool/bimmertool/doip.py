@@ -107,12 +107,19 @@ class DoipConnection:
                 self.sock = None
 
     def _send(self, ptype, payload):
-        self.sock.sendall(build(ptype, payload, self.version))
+        try:
+            self.sock.sendall(build(ptype, payload, self.version))
+        except OSError:
+            self.close()
+            raise
 
     def _recv(self, deadline):
         while True:
             if len(self._buf) >= 8:
                 _v, _iv, ptype, length = struct.unpack(">BBHI", self._buf[:8])
+                if _v not in PROTOCOL_VERSIONS or _iv != (_v ^ 0xFF) or length > 1024 * 1024:
+                    self.close()
+                    raise HsfzError("Geçersiz DoIP başlığı veya aşırı çerçeve uzunluğu")
                 if len(self._buf) >= 8 + length:
                     payload = self._buf[8:8 + length]
                     self._buf = self._buf[8 + length:]
@@ -128,6 +135,9 @@ class DoipConnection:
                 chunk = self.sock.recv(65536)
             except socket.timeout:
                 raise NoResponse("yanıt yok")
+            except OSError:
+                self.close()
+                raise
             if not chunk:
                 self.close()
                 raise HsfzError("araç bağlantıyı kapattı")
@@ -137,16 +147,18 @@ class DoipConnection:
         errors = []
         for tester in self.testers:
             for version in PROTOCOL_VERSIONS:
-                self.sock = socket.create_connection((self.host, self.port), timeout=5.0)
-                self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                self._buf = b""
-                self.version = version
-                self._send(T_ROUTING_REQ, struct.pack(">HBI", tester, 0x00, 0))
                 try:
+                    self.sock = socket.create_connection((self.host, self.port), timeout=5.0)
+                    self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                    self._buf = b""
+                    self.version = version
+                    self._send(T_ROUTING_REQ, struct.pack(">HBI", tester, 0x00, 0))
                     ptype, p = self._recv(time.monotonic() + 3.0)
-                except HsfzError as e:
+                except (OSError, HsfzError) as e:
                     errors.append(f"0x{tester:04X}/v{version}: {e}")
                     self.close()
+                    if isinstance(e, OSError):
+                        raise HsfzError(f"DoIP ağına erişilemiyor: {e}") from e
                     continue
                 if ptype == T_ROUTING_RESP and len(p) >= 5 and p[4] == 0x10:
                     self.tester = tester
@@ -166,6 +178,7 @@ class DoipConnection:
             self._buf = b""
             self._send(T_DIAG, struct.pack(">HH", self.tester, ecu) + bytes(data))
             deadline = time.monotonic() + timeout
+            pending_limit = time.monotonic() + max(timeout, 15.0)
             while True:
                 ptype, p = self._recv(deadline)
                 if ptype == T_DIAG_ACK:
@@ -181,7 +194,9 @@ class DoipConnection:
                 if src != ecu or dst != self.tester:
                     continue
                 resp = p[4:]
-                if resp[0] == 0x7F and len(resp) >= 3 and resp[2] == 0x78:
-                    deadline = time.monotonic() + max(timeout, 5.0)
+                if resp[0] == 0x7F and len(resp) >= 3 and resp[1] == data[0] and resp[2] == 0x78:
+                    if time.monotonic() >= pending_limit:
+                        raise NoResponse("Yanıt bekleme toplam süre sınırı aşıldı; yazma otomatik tekrarlanmadı")
+                    deadline = min(pending_limit, time.monotonic() + max(timeout, 5.0))
                     continue
                 return resp
