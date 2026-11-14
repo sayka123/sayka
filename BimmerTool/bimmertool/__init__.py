@@ -1,3 +1,3 @@
-"""BimmerTool: ENET (HSFZ) üzerinden BMW F/G serisi teşhis ve kodlama aracı."""
+"""BimmerTool: ENET diagnostic tools with explicit simulator and vehicle boundaries."""
 
-__version__ = "0.1.0"
+__version__ = "0.8.0"
