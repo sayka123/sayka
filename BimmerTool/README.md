@@ -36,8 +36,29 @@ python BimmerTool.py
 5. **Kodlama:** Bir kodlama listesi (`.json`) yükleyin, *Mevcut değerleri oku*, bir ayar ve yeni değer seçip *Kodla*.
    - Her yazmadan önce eski değer `yedekler/` klasörüne kaydedilir. *Yedekten geri yükle* ile geri alabilirsiniz.
    - Yazdıktan sonra değer tekrar okunup doğrulanır.
+   - Geçersiz adres/maske/seçenekler, boş veya farklı uzunlukta veri ve okuma
+     sırasında değişen bloklar için yazma başlatılmaz. Yedek alınamazsa yazılmaz.
+     Bu kontroller tanımın gerçek araç için doğru olduğunu kanıtlamaz.
 
 Araç olmadan denemek için *Bağlantı* sekmesindeki **simülatör** düğmelerini kullanın: biri benzinli F/G serisi, biri elektrikli iX gibi davranır.
+
+### Keşif: salt okunur kayıt ve karşılaştırma
+
+**Keşif** sekmesinde modül adreslerini (örneğin `0x10, 0x40`) ve bilinen DID
+aralığını girerek **Kayıt al** düğmesiyle JSON kaydedebilirsiniz. Modül alanı boşsa
+Modüller sekmesinde bulunan adresler kullanılır. Varsayılan DID `0xF190` şasi
+numarası okumasıdır; gizli özellik veya kodlama adresi değildir.
+
+**İki kaydı karşılaştır** ortak veri bloklarındaki bayt farklarını gösterir.
+Yalnızca bir kayıtta bulunan bloklar bu karşılaştırmaya dahil değildir. Farklı
+şasi numaraları için uyarı gösterilir. Kaydedilen dosyalar VIN ve ham araç
+verilerini içerir; paylaşmadan önce kişisel bilgileri temizleyin.
+
+Bu sekme yalnızca okuma isteği gönderir. Bir baytın değişmesi, belirli bir ayarı
+kontrol ettiğini veya o adrese yazmanın güvenli olduğunu **kanıtlamaz**. Bu nedenle
+farklardan otomatik kodlama listesi üretilmez. Güvenlik erişimini veya imza
+kontrolünü zorlama yoktur. Gerçek iX40 uyumluluğu doğrulanmamıştır; testler
+HSFZ ve iX benzeri DoIP simülatöründe yapılır.
 
 ## Kodlama listesi formatı
 
