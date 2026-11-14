@@ -4,10 +4,11 @@ import os
 import queue
 import sys
 import threading
+import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from . import __version__, coding, livedata, transport
+from . import __version__, coding, livedata, snapshot, theme, transport
 from .ecus import ECU_NAMES, ecu_name
 from .uds import UdsClient, format_dtc
 
@@ -26,8 +27,8 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"BimmerTool {__version__}")
-        self.geometry("900x600")
-        self.minsize(760, 480)
+        self.geometry("1280x820")
+        self.minsize(1160, 740)
         self.conn = None
         self.uds = None
         self.vin = None
@@ -38,26 +39,55 @@ class App(tk.Tk):
         self._results = queue.Queue()
         self._live_running = False
 
-        style = ttk.Style(self)
-        if "clam" in style.theme_names():
-            style.theme_use("clam")
-        style.configure("Treeview", rowheight=24)
+        theme.configure(self)
+        self.status = tk.StringVar(value="Hazır. Başlamak için aracınızı bağlayın veya demoyu deneyin.")
+        self.connection_state = tk.StringVar(value="BAĞLANTI YOK")
+        self.module_count = tk.StringVar(value="—")
+        shell = ttk.Frame(self, padding=18)
+        shell.pack(fill="both", expand=True)
+        sidebar = ttk.Frame(shell, width=190)
+        sidebar.pack(side="left", fill="y", padx=(0, 24))
+        sidebar.pack_propagate(False)
+        ttk.Label(sidebar, text="BIMMER", style="Title.TLabel").pack(anchor="w", pady=(5, 0))
+        ttk.Label(sidebar, text="TOOL  /  ENET STUDIO", style="Muted.TLabel").pack(anchor="w", pady=(0, 32))
+        ttk.Label(sidebar, text="ÇALIŞMA ALANI", style="Muted.TLabel").pack(anchor="w", padx=12, pady=(0, 12))
+        self.nav_buttons = []
+        labels = ["Bağlantı", "Modüller", "Hata Kodları", "Canlı Veri", "Kodlama", "Keşif"]
+        for i, label in enumerate(labels):
+            button = ttk.Button(sidebar, text=f"{i + 1:02d}   {label}", style="Nav.TButton",
+                                command=lambda index=i: self.tabs.select(index))
+            button.pack(fill="x", pady=3)
+            self.nav_buttons.append(button)
+        ttk.Label(sidebar, text=f"BimmerTool {__version__}\nENET · HSFZ · DoIP\n\nBağımsız masaüstü aracı.\nBMW resmi ürünü değildir.",
+                  style="Muted.TLabel", justify="left").pack(side="bottom", anchor="w", pady=12)
 
-        self.status = tk.StringVar(value="Bağlı değil")
-        top = ttk.Frame(self, padding=(10, 8))
-        top.pack(fill="x")
-        ttk.Label(top, text="Durum:").pack(side="left")
-        ttk.Label(top, textvariable=self.status, font=("TkDefaultFont", 10, "bold")).pack(side="left", padx=6)
-
-        self.tabs = ttk.Notebook(self)
-        self.tabs.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        main = ttk.Frame(shell)
+        main.pack(side="left", fill="both", expand=True)
+        header = ttk.Frame(main)
+        header.pack(fill="x", pady=(0, 14))
+        self.page_title = tk.StringVar(value="Bağlantı merkezi")
+        self.page_description = tk.StringVar()
+        ttk.Label(header, textvariable=self.page_title, style="Title.TLabel").pack(anchor="w")
+        ttk.Label(header, textvariable=self.page_description, style="Muted.TLabel").pack(anchor="w", pady=(6, 0))
+        summary = ttk.Frame(main, style="Card.TFrame", padding=(18, 12))
+        summary.pack(fill="x", pady=(0, 16))
+        ttk.Label(summary, textvariable=self.connection_state, style="Metric.TLabel").pack(side="left")
+        ttk.Label(summary, text="ENET / Ethernet bağlantısı", style="CardMuted.TLabel").pack(side="right")
+        footer = ttk.Frame(main, style="Card.TFrame", padding=(14, 10))
+        footer.pack(side="bottom", fill="x", pady=(12, 0))
+        ttk.Label(footer, textvariable=self.status, style="CardMuted.TLabel", wraplength=850).pack(anchor="w")
+        self.tabs = ttk.Notebook(main)
+        self.tabs.pack(fill="both", expand=True)
         self._build_connection_tab()
         self._build_modules_tab()
         self._build_dtc_tab()
         self._build_live_tab()
         self._build_coding_tab()
+        self._build_discovery_tab()
+        self.tabs.bind("<<NotebookTabChanged>>", self._on_page_change)
+        self._on_page_change()
 
-        self.after(100, self._poll_results)
+        self._poll_job = self.after(100, self._poll_results)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     # ---- background work -------------------------------------------------
@@ -85,7 +115,7 @@ class App(tk.Tk):
                     done(result)
         except queue.Empty:
             pass
-        self.after(100, self._poll_results)
+        self._poll_job = self.after(100, self._poll_results)
 
     def require_connection(self):
         if not self.uds:
@@ -94,38 +124,61 @@ class App(tk.Tk):
         return True
 
     # ---- connection ----------------------------------------------------
+    def _on_page_change(self, _event=None):
+        index = self.tabs.index(self.tabs.select())
+        pages = [
+            ("Bağlantı merkezi", "Aracınızı bağlayın. Verilerinizi tek bir çalışma alanından yönetin."),
+            ("Kontrol modülleri", "Araçtaki erişilebilir elektronik kontrol ünitelerini tarayın."),
+            ("Hata kodları", "Kayıtlı arızaları inceleyin. Silme işlemi arızanın nedenini gidermez."),
+            ("Canlı veri", "Desteklenen ölçümleri ve özel DID okumalarını takip edin."),
+            ("Kodlama çalışma alanı", "Doğrulanmış tanımlarla okuyun, yedekleyin ve yazmayı doğrulayın."),
+            ("Veri keşfi", "Salt okunur kayıtlar alın ve ortak veri bloklarını karşılaştırın."),
+        ]
+        self.page_title.set(pages[index][0])
+        self.page_description.set(pages[index][1])
+        for i, button in enumerate(self.nav_buttons):
+            button.configure(style="Selected.Nav.TButton" if i == index else "Nav.TButton")
+
     def _build_connection_tab(self):
-        f = ttk.Frame(self.tabs, padding=14)
+        f = ttk.Frame(self.tabs)
         self.tabs.add(f, text="Bağlantı")
-        ttk.Label(f, text=(
-            "ENET kablosunu aracın OBD soketine, diğer ucunu bilgisayarın Ethernet girişine takın.\n"
-            "Kontağı açın (motor çalışıyorsa daha iyi; uzun işlemlerde akü şarj cihazı kullanın)."),
-            justify="left").grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 12))
-
-        ttk.Label(f, text="Araç IP adresi:").grid(row=1, column=0, sticky="w")
+        card = ttk.Frame(f, style="Card.TFrame", padding=16)
+        card.pack(fill="x")
+        ttk.Label(card, text="01  /  ARACINIZA BAĞLANIN", style="CardMuted.TLabel").pack(anchor="w")
+        ttk.Label(card, text="ENET ile doğrudan bağlantı", style="CardTitle.TLabel").pack(anchor="w", pady=(8, 6))
+        ttk.Label(card, text="OBD2 → Ethernet → Mac veya PC. Araç park halinde, elektronik sistemleri açık olmalı.",
+                  style="CardMuted.TLabel", wraplength=800).pack(anchor="w")
+        controls = ttk.Frame(card, style="Card.TFrame")
+        controls.pack(fill="x", pady=(18, 0))
         self.ip_var = tk.StringVar()
-        ttk.Entry(f, textvariable=self.ip_var, width=22).grid(row=1, column=1, sticky="w", padx=6)
-        ttk.Button(f, text="Aracı otomatik bul", command=self.on_discover).grid(row=1, column=2, padx=4)
-        ttk.Button(f, text="Bağlan", command=self.on_connect).grid(row=1, column=3, padx=4)
+        ttk.Label(controls, text="Araç IP", style="Card.TLabel").pack(side="left", padx=(0, 10))
+        ttk.Entry(controls, textvariable=self.ip_var, width=22).pack(side="left", padx=(0, 10))
+        ttk.Button(controls, text="Aracı otomatik bul", command=self.on_discover).pack(side="left", padx=(0, 8))
+        ttk.Button(controls, text="Bağlan", style="Accent.TButton", command=self.on_connect).pack(side="left")
 
-        self.vin_var = tk.StringVar(value="-")
-        ttk.Label(f, text="Şasi numarası (VIN):").grid(row=2, column=0, sticky="w", pady=(14, 0))
-        ttk.Label(f, textvariable=self.vin_var, font=("TkFixedFont", 11)).grid(
-            row=2, column=1, columnspan=3, sticky="w", pady=(14, 0), padx=6)
+        metrics = ttk.Frame(f)
+        metrics.pack(fill="x", pady=12)
+        self.vin_var = tk.StringVar(value="Henüz okunmadı")
+        self.proto_var = tk.StringVar(value="Bağlantı bekleniyor")
+        for label, var in [("ŞASİ NUMARASI / VIN", self.vin_var),
+                           ("PROTOKOL", self.proto_var), ("BULUNAN MODÜL", self.module_count)]:
+            tile = ttk.Frame(metrics, style="Card.TFrame", padding=16)
+            tile.pack(side="left", fill="both", expand=True, padx=(0, 8))
+            ttk.Label(tile, text=label, style="CardMuted.TLabel").pack(anchor="w")
+            ttk.Label(tile, textvariable=var, style="Card.TLabel").pack(anchor="w", pady=(10, 0))
 
-        self.proto_var = tk.StringVar(value="-")
-        ttk.Label(f, text="Protokol:").grid(row=3, column=0, sticky="w", pady=(6, 0))
-        ttk.Label(f, textvariable=self.proto_var).grid(row=3, column=1, columnspan=3, sticky="w", pady=(6, 0), padx=6)
-
-        sep = ttk.Separator(f)
-        sep.grid(row=4, column=0, columnspan=4, sticky="ew", pady=18)
-        ttk.Label(f, text="Araç yok mu? Programı sahte bir BMW ile deneyin:").grid(row=5, column=0, columnspan=4, sticky="w")
-        sims = ttk.Frame(f)
-        sims.grid(row=6, column=0, columnspan=4, sticky="w", pady=6)
-        ttk.Button(sims, text="Benzinli F/G serisi simülatörü",
-                   command=lambda: self.on_simulator("f")).pack(side="left")
-        ttk.Button(sims, text="Elektrikli iX simülatörü",
-                   command=lambda: self.on_simulator("ix")).pack(side="left", padx=8)
+        demo = ttk.Frame(f, style="Card.TFrame", padding=16)
+        demo.pack(fill="x")
+        ttk.Label(demo, text="02  /  ARAÇ OLMADAN DENEYİN", style="CardMuted.TLabel").pack(anchor="w")
+        ttk.Label(demo, text="Önce güvenli bir prova", style="CardTitle.TLabel").pack(anchor="w", pady=(8, 6))
+        ttk.Label(demo, text="Simülatör gerçek araca bağlanmaz. F/G demosu yazmayı, iX demosu güvenlik reddini gösterir.",
+                  style="CardMuted.TLabel", wraplength=800).pack(anchor="w")
+        sims = ttk.Frame(demo, style="Card.TFrame")
+        sims.pack(anchor="w", pady=(12, 0))
+        ttk.Button(sims, text="F/G simülatörü", command=lambda: self.on_simulator("f")).pack(side="left")
+        ttk.Button(sims, text="iX simülatörü", command=lambda: self.on_simulator("ix")).pack(side="left", padx=10)
+        ttk.Label(f, text="ÖNEMLİ  /  Gerçek iX40 uyumluluğu doğrulanmadı. Örnek kodlama dosyası yalnızca demo içindir.",
+                  foreground="#EBC389", wraplength=850).pack(anchor="w", pady=(18, 0))
         self._discovered_protocol = None
 
     def on_discover(self):
@@ -170,6 +223,9 @@ class App(tk.Tk):
             self.proto_var.set("DoIP (yeni nesil, örn. iX/i4)" if self.conn.protocol == "doip"
                                else "HSFZ (F/G serisi)")
             self.found_ecus = []
+            self.module_count.set("—")
+            is_demo = self.simulator is not None and host == "127.0.0.1"
+            self.connection_state.set("SİMÜLATÖR · " + self.simulator.model.upper() if is_demo else "ARAÇ BAĞLI")
             self.status.set(f"Bağlı: {host}")
 
         self.run_bg(work, done, f"{host} adresine bağlanılıyor...")
@@ -225,6 +281,7 @@ class App(tk.Tk):
 
         def done(found):
             self.found_ecus = found
+            self.module_count.set(str(len(found)))
             self.status.set(f"{len(found)} modül bulundu")
 
         self.run_bg(work, done, "Modüller taranıyor...")
@@ -239,7 +296,7 @@ class App(tk.Tk):
         bar = ttk.Frame(f)
         bar.pack(fill="x")
         ttk.Button(bar, text="Hata kodlarını oku", command=self.on_read_dtcs).pack(side="left")
-        ttk.Button(bar, text="Tüm hata kodlarını sil", command=self.on_clear_dtcs).pack(side="left", padx=8)
+        ttk.Button(bar, text="Tüm hata kodlarını sil", style="Danger.TButton", command=self.on_clear_dtcs).pack(side="left", padx=8)
         self.dtc_tree = self._tree(f, ("ecu", "code", "status"), ("Modül", "Kod", "Durum"), (330, 110, 200))
 
     def _modules_for_dtcs(self):
@@ -372,7 +429,7 @@ class App(tk.Tk):
         ttk.Button(bar, text="Yedekten geri yükle...", command=self.on_restore).pack(side="right")
 
         self.coding_tree = self._tree(f, ("name", "ecu", "current"), ("Ayar", "Modül", "Mevcut"),
-                                      (380, 220, 140), height=8)
+                                      (380, 220, 140), height=6)
         self.coding_tree.bind("<<TreeviewSelect>>", self._on_coding_select)
 
         apply_bar = ttk.Frame(f)
@@ -381,9 +438,10 @@ class App(tk.Tk):
         self.option_var = tk.StringVar()
         self.option_box = ttk.Combobox(apply_bar, textvariable=self.option_var, state="readonly", width=20)
         self.option_box.pack(side="left", padx=6)
-        ttk.Button(apply_bar, text="Kodla", command=self.on_apply_coding).pack(side="left")
+        ttk.Button(apply_bar, text="Kodla", style="Accent.TButton", command=self.on_apply_coding).pack(side="left")
         self.note_var = tk.StringVar()
-        ttk.Label(apply_bar, textvariable=self.note_var, foreground="#555").pack(side="left", padx=10)
+        ttk.Label(apply_bar, textvariable=self.note_var, foreground=theme.MUTED,
+                  wraplength=360).pack(side="left", padx=10)
 
         raw = ttk.LabelFrame(f, text="Uzman: ham veri (DID) okuma / yazma", padding=8)
         raw.pack(fill="x", pady=(8, 0))
@@ -391,7 +449,7 @@ class App(tk.Tk):
         self.raw_did = tk.StringVar(value="0xF190")
         self.raw_data = tk.StringVar()
         for col, (label, var, w) in enumerate((("Modül", self.raw_ecu, 6), ("DID", self.raw_did, 8),
-                                               ("Veri (hex)", self.raw_data, 40))):
+                                               ("Veri (hex)", self.raw_data, 24))):
             ttk.Label(raw, text=label).grid(row=0, column=col * 2, padx=(0, 4))
             ttk.Entry(raw, textvariable=var, width=w).grid(row=0, column=col * 2 + 1, padx=(0, 10))
         ttk.Button(raw, text="Oku", command=self.on_raw_read).grid(row=0, column=6)
@@ -507,11 +565,105 @@ class App(tk.Tk):
                     lambda b: self.status.set(f"Yazıldı ve doğrulandı (yedek: {os.path.basename(b)})"),
                     "Yazılıyor...")
 
+    # ---- discovery (read-only) ------------------------------------------
+    def _build_discovery_tab(self):
+        f = ttk.Frame(self.tabs, padding=10)
+        self.tabs.add(f, text="Keşif")
+        ttk.Label(f, foreground=theme.MUTED, wraplength=820, justify="left", text=(
+            "Salt okunur veri karşılaştırması: Kayıt alın, sonra ikinci kayıtla karşılaştırın. "
+            "Farklar kodlama adresini veya bir ayarla bağlantıyı kanıtlamaz. Varsayılan DID şasi numarasıdır. "
+            "Yalnızca aracınız için bilinen adresleri kullanın. Bu sekme araca yazmaz.")
+        ).pack(fill="x")
+        opts = ttk.Frame(f)
+        opts.pack(fill="x", pady=6)
+        self.snap_ecus = tk.StringVar()
+        self.snap_from = tk.StringVar(value=f"0x{snapshot.DEFAULT_RANGE[0]:04X}")
+        self.snap_to = tk.StringVar(value=f"0x{snapshot.DEFAULT_RANGE[1]:04X}")
+        ttk.Label(opts, text="Modüller (boş = bulunanlar)").pack(side="left")
+        ttk.Entry(opts, textvariable=self.snap_ecus, width=22).pack(side="left", padx=(4, 10))
+        ttk.Label(opts, text="DID").pack(side="left")
+        ttk.Entry(opts, textvariable=self.snap_from, width=7).pack(side="left", padx=2)
+        ttk.Label(opts, text="-").pack(side="left")
+        ttk.Entry(opts, textvariable=self.snap_to, width=7).pack(side="left", padx=2)
+        self.snap_progress = ttk.Progressbar(opts, length=180)
+        self.snap_progress.pack(side="right")
+
+        bar = ttk.Frame(f)
+        bar.pack(fill="x")
+        ttk.Button(bar, text="Kayıt al...", command=self.on_snapshot).pack(side="left")
+        ttk.Button(bar, text="İki kaydı karşılaştır...", command=self.on_diff).pack(side="left", padx=6)
+        self.diff_tree = self._tree(f, ("ecu", "did", "change"), ("Modül", "DID", "Değişiklik"),
+                                    (260, 90, 380))
+        self._changes = []
+
+    def _snapshot_targets(self):
+        text = self.snap_ecus.get().replace(",", " ").split()
+        ecus = [int(t, 0) for t in text] if text else list(self.found_ecus)
+        did_range = (int(self.snap_from.get(), 0), int(self.snap_to.get(), 0))
+        snapshot.validate_targets(ecus, did_range)
+        return ecus, did_range
+
+    def on_snapshot(self):
+        if not self.require_connection():
+            return
+        try:
+            ecus, did_range = self._snapshot_targets()
+        except ValueError as e:
+            messagebox.showerror("Hatalı giriş", f"Modül ve DID değerlerini 0x72 gibi yazın.\n{e}")
+            return
+        if not ecus:
+            messagebox.showwarning("Modül yok", "Önce Modüller sekmesinde tarama yapın veya modül adresi girin.")
+            return
+        os.makedirs(self.backup_dir, exist_ok=True)
+        path = filedialog.asksaveasfilename(
+            initialdir=self.backup_dir, defaultextension=".json", filetypes=[("Kayıt", "*.json")],
+            initialfile=f"kayit_{time.strftime('%Y%m%d-%H%M%S')}.json")
+        if not path:
+            return
+
+        def progress(done, total, _ecu):
+            self._results.put((lambda v: self.snap_progress.configure(maximum=total, value=v), done, None))
+
+        def work():
+            snap = snapshot.take_snapshot(self.uds, ecus, did_range, progress=progress)
+            snapshot.save(path, snap, self.vin)
+            return snap
+
+        def done(snap):
+            self.snap_progress.configure(value=self.snap_progress["maximum"])
+            count = sum(len(b) for b in snap.values())
+            self.status.set(f"Kayıt alındı: {len(snap)} modül, {count} veri bloğu")
+
+        self.run_bg(work, done, "Kayıt alınıyor (yalnızca okuma)...")
+
+    def on_diff(self):
+        first = filedialog.askopenfilename(title="Önceki kayıt", initialdir=self.backup_dir,
+                                           filetypes=[("Kayıt", "*.json")])
+        if not first:
+            return
+        second = filedialog.askopenfilename(title="Sonraki kayıt", initialdir=self.backup_dir,
+                                            filetypes=[("Kayıt", "*.json")])
+        if not second:
+            return
+        try:
+            (a, vin_a), (b, vin_b) = snapshot.load(first), snapshot.load(second)
+        except Exception as e:
+            messagebox.showerror("Kayıt okunamadı", str(e))
+            return
+        if vin_a and vin_b and vin_a != vin_b:
+            messagebox.showwarning("Farklı araç", "Bu iki kayıt farklı şasi numaralarına ait.")
+        self._changes = snapshot.diff(a, b)
+        self.diff_tree.delete(*self.diff_tree.get_children())
+        for i, c in enumerate(self._changes):
+            self.diff_tree.insert("", "end", iid=str(i),
+                                  values=(ecu_name(c.ecu), f"0x{c.did:04X}", c.describe()))
+        self.status.set(f"Ortak veri bloklarında {len(self._changes)} fark bulundu; kodlama tanımı değildir")
+
     # ---- helpers -------------------------------------------------------
     def _tree(self, parent, cols, headings, widths, height=None):
         frame = ttk.Frame(parent)
         frame.pack(fill="both", expand=True, pady=(8, 0))
-        tree = ttk.Treeview(frame, columns=cols, show="headings", height=height or 10)
+        tree = ttk.Treeview(frame, columns=cols, show="headings", height=height or 6)
         for c, h, w in zip(cols, headings, widths):
             tree.heading(c, text=h, anchor="w")
             tree.column(c, width=w, anchor="w")
@@ -522,6 +674,7 @@ class App(tk.Tk):
         return tree
 
     def _on_close(self):
+        self.after_cancel(self._poll_job)
         self._live_running = False
         if self.conn:
             self.conn.close()

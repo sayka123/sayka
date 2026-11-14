@@ -2,6 +2,12 @@
 
 BMW'lere ENET kablosuyla bağlanan Windows / Mac / Linux masaüstü programı. Şunları yapar:
 
+Arayüz koyu tema, sol gezinme menüsü ve ayrı bağlantı kartları kullanır.
+Bağlantı ekranında VIN, protokol ve son taramada bulunan modül sayısı gösterilir.
+Üstteki **SİMÜLATÖR** etiketi demo bağlantısını gerçek araçtan ayırır.
+Kodlama ve hata kodu silme gibi işlemlerin onayları korunmuştur.
+Ek arayüz paketi gerekmez; Python'un Tkinter bileşeni kullanılır.
+
 | Özellik | F/G serisi (≈2008–2021) | iX, i4 ve yeni nesil (2021+) |
 |---|---|---|
 | Aracı bulma, şasi numarası okuma | ✅ (HSFZ, port 6801) | ✅ (DoIP, port 13400) |
@@ -18,6 +24,12 @@ BMW'lere ENET kablosuyla bağlanan Windows / Mac / Linux masaüstü programı. �
 - Windows'ta güvenlik duvarı ilk açılışta izin isterse **izin verin**; yoksa "Aracı otomatik bul" çalışmaz. Bu durumda IP adresini elle de girebilirsiniz.
 
 ## Kurulum
+
+**Kolay açılış (Python kuruluysa):** ZIP'i yeni bir klasöre tamamen çıkartın.
+Mac'te `Mac-Baslat.command`, Windows'ta `Windows-Baslat.bat` dosyasına çift
+tıklayın. Kod dosyasını düzenlemeniz gerekmez. Bunlar bağımsız EXE veya Mac
+uygulaması değil, Python başlatıcılarıdır. Mac güvenlik uyarısı verirse korumayı
+kapatmayın; uyarı metnini paylaşın.
 
 **Hazır Windows programı:** GitHub'da *Actions → BimmerTool → son başarılı çalışma → Artifacts → BimmerTool-windows* dosyasını indirin, zipten çıkarın ve `BimmerTool.exe` dosyasını çalıştırın.
 
@@ -36,8 +48,29 @@ python BimmerTool.py
 5. **Kodlama:** Bir kodlama listesi (`.json`) yükleyin, *Mevcut değerleri oku*, bir ayar ve yeni değer seçip *Kodla*.
    - Her yazmadan önce eski değer `yedekler/` klasörüne kaydedilir. *Yedekten geri yükle* ile geri alabilirsiniz.
    - Yazdıktan sonra değer tekrar okunup doğrulanır.
+   - Geçersiz adres/maske/seçenekler, boş veya farklı uzunlukta veri ve okuma
+     sırasında değişen bloklar için yazma başlatılmaz. Yedek alınamazsa yazılmaz.
+     Bu kontroller tanımın gerçek araç için doğru olduğunu kanıtlamaz.
 
 Araç olmadan denemek için *Bağlantı* sekmesindeki **simülatör** düğmelerini kullanın: biri benzinli F/G serisi, biri elektrikli iX gibi davranır.
+
+### Keşif: salt okunur kayıt ve karşılaştırma
+
+**Keşif** sekmesinde modül adreslerini (örneğin `0x10, 0x40`) ve bilinen DID
+aralığını girerek **Kayıt al** düğmesiyle JSON kaydedebilirsiniz. Modül alanı boşsa
+Modüller sekmesinde bulunan adresler kullanılır. Varsayılan DID `0xF190` şasi
+numarası okumasıdır; gizli özellik veya kodlama adresi değildir.
+
+**İki kaydı karşılaştır** ortak veri bloklarındaki bayt farklarını gösterir.
+Yalnızca bir kayıtta bulunan bloklar bu karşılaştırmaya dahil değildir. Farklı
+şasi numaraları için uyarı gösterilir. Kaydedilen dosyalar VIN ve ham araç
+verilerini içerir; paylaşmadan önce kişisel bilgileri temizleyin.
+
+Bu sekme yalnızca okuma isteği gönderir. Bir baytın değişmesi, belirli bir ayarı
+kontrol ettiğini veya o adrese yazmanın güvenli olduğunu **kanıtlamaz**. Bu nedenle
+farklardan otomatik kodlama listesi üretilmez. Güvenlik erişimini veya imza
+kontrolünü zorlama yoktur. Gerçek iX40 uyumluluğu doğrulanmamıştır; testler
+HSFZ ve iX benzeri DoIP simülatöründe yapılır.
 
 ## Kodlama listesi formatı
 

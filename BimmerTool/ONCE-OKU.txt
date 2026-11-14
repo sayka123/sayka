@@ -1,0 +1,13 @@
+BIMMERTOOL - KOLAY ACILIS
+
+1. ZIP dosyasini tamamen cikartin. Eski klasorun uzerine degil, yeni bir yere cikartin.
+2. Mac: Mac-Baslat.command dosyasina cift tiklayin.
+   Windows: Windows-Baslat.bat dosyasina cift tiklayin.
+3. Python kodunu acmaniz veya degistirmeniz gerekmez.
+
+Python 3.10 veya uzeri kurulu olmalidir. Bu paket bagimsiz EXE veya Mac uygulamasi degildir.
+Mac guvenlik uyarisi gorurseniz engeli kapatmayin; uyari metnini paylasin.
+Hata olursa acik kalan terminal penceresinin ekran goruntusunu paylasin.
+
+Once F/G simulatoru ile deneyin. sim_kodlama_ornek.json yalnizca simulator icindir.
+Gercek iX40'ta gizli ozellik acma dogrulanmamistir.
