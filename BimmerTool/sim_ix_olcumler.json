@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "name": "iX40 DEMO · Sahte ölçüm adresleri",
+  "simulator_only": true,
+  "signals": [
+    {"key": "soc", "name": "Batarya doluluk oranı", "unit": "%", "ecu": 7, "did": 53249, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0},
+    {"key": "voltage", "name": "Batarya gerilimi", "unit": "V", "ecu": 7, "did": 53250, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0},
+    {"key": "current", "name": "Batarya akımı", "unit": "A", "ecu": 7, "did": 53251, "offset": 0, "length": 2, "byteorder": "big", "signed": true, "scale": 0.1, "add": 0},
+    {"key": "temperature", "name": "Batarya sıcaklığı", "unit": "°C", "ecu": 7, "did": 53252, "offset": 0, "length": 2, "byteorder": "big", "signed": true, "scale": 0.1, "add": 0},
+    {"key": "charge_power", "name": "Şarj gücü", "unit": "kW", "ecu": 7, "did": 53253, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0},
+    {"key": "soh", "name": "Batarya sağlık durumu", "unit": "%", "ecu": 7, "did": 53254, "offset": 0, "length": 2, "byteorder": "big", "signed": false, "scale": 0.1, "add": 0}
+  ]
+}
