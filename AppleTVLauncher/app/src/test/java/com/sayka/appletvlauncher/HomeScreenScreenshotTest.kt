@@ -14,6 +14,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onRoot
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,14 +45,22 @@ class HomeScreenScreenshotTest {
         ).map { (name, color) -> fakeApp(name, color.toInt()) }
 
         Locale.setDefault(Locale("tr", "TR"))
-        compose.setContent { HomeScreen(apps = apps, onOpen = {}) }
+        // Uses the private wallpaper when present locally; CI renders the ambient backdrop.
+        val wallpaper = AppRepository.loadWallpaper(compose.activity)
+        compose.setContent { HomeScreen(apps = apps, onOpen = {}, wallpaper = wallpaper) }
         compose.waitForIdle()
-        // Robolectric windows never gain input focus on their own, so focus the first tile explicitly.
-        compose.onAllNodes(hasClickAction())[0].requestFocus()
+        // Robolectric windows never gain input focus on their own, so focus the first tile explicitly
+        // (clickable #0 is the assistant button in the Top Shelf).
+        compose.onAllNodes(hasClickAction())[1].requestFocus()
         compose.mainClock.advanceTimeBy(2_000) // let focus and crossfade animations settle
         compose.onAllNodes(isFocused()).assertCountEquals(1)
+        // Two full rows must fit on screen: the last tile of row 2 is entirely visible.
+        val screen = compose.onRoot().getBoundsInRoot()
+        val rowTwoEnd = compose.onNodeWithContentDescription("BluTV").assertIsDisplayed().getBoundsInRoot()
+        assertTrue("row 2 cut off: ${rowTwoEnd.bottom} > ${screen.bottom}", rowTwoEnd.bottom <= screen.bottom)
         // Top Shelf title plus the label under the focused first tile.
         compose.onAllNodesWithText("YouTube").assertCountEquals(2)
+        compose.onAllNodesWithText("Yapay Zekâ Asistanı").assertCountEquals(1)
 
         val out = File("build/screenshots/home.png").apply { parentFile?.mkdirs() }
         // Software-draw the window; Compose's captureToImage never gets a frame under Robolectric.
@@ -69,6 +82,6 @@ class HomeScreenScreenshotTest {
             })
         }
         val image = banner.asImageBitmap()
-        return LauncherApp(name, "pkg.$name", Intent(), image, image)
+        return LauncherApp(name, "pkg.$name", Intent(), image, image, AppRepository.backdropOf(banner))
     }
 }

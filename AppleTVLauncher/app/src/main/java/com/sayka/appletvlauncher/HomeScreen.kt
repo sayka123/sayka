@@ -1,13 +1,8 @@
 package com.sayka.appletvlauncher
 
-import android.os.Build
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,19 +38,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
@@ -70,32 +66,40 @@ import java.util.Locale
 
 private val TileShape = RoundedCornerShape(16.dp)
 private val TileGray = Color(0xFF1C1C1E)
-private val Secondary = Color.White.copy(alpha = 0.6f)
+private val Secondary = Color.White.copy(alpha = 0.78f)
 private val EdgeInset = 64.dp
 
+// Sized so the Top Shelf plus two full rows of tiles fit a 1080p (960x540dp) TV screen.
+private val ShelfHeight = 250.dp
+
 /**
- * Apple TV style home: a cinematic Top Shelf for the focused app (slow
- * Ken Burns backdrop, ambient color washing the whole screen), then a grid of
- * rounded 16:9 tiles that lift, glow and catch a glass highlight on focus.
+ * Apple TV style home: a cinematic Top Shelf for the focused app (its ambient
+ * color washing the whole screen), then two visible rows of rounded 16:9 tiles
+ * that lift, glow and catch a glass highlight on focus.
  */
 @Composable
-fun HomeScreen(apps: List<LauncherApp>?, onOpen: (LauncherApp) -> Unit) {
+fun HomeScreen(
+    apps: List<LauncherApp>?,
+    onOpen: (LauncherApp) -> Unit,
+    wallpaper: ImageBitmap? = null,
+    onAssistant: () -> Unit = {},
+) {
     var focused by remember { mutableStateOf<LauncherApp?>(null) }
     val firstTile = remember { FocusRequester() }
     val current = focused ?: apps?.firstOrNull()
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AmbientBackdrop(current)
+        if (wallpaper != null) WallpaperBackdrop(wallpaper) else AmbientBackdrop(current)
 
         if (apps != null) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(5),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = EdgeInset, end = EdgeInset, bottom = 64.dp),
+                contentPadding = PaddingValues(start = EdgeInset, end = EdgeInset, bottom = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(36.dp),
-                verticalArrangement = Arrangement.spacedBy(40.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
-                item(span = { GridItemSpan(maxLineSpan) }) { TopShelf(current) }
+                item(span = { GridItemSpan(maxLineSpan) }) { TopShelf(current, onAssistant) }
                 itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
                     AppTile(
                         app = app,
@@ -114,63 +118,69 @@ fun HomeScreen(apps: List<LauncherApp>?, onOpen: (LauncherApp) -> Unit) {
     }
 }
 
-/** Full-screen, heavily blurred copy of the focused app's art, so its colors tint the whole UI. */
+/** Full-screen soft copy of the focused app's art, so its colors tint the whole UI. */
 @Composable
 private fun AmbientBackdrop(app: LauncherApp?) {
-    val drift = rememberInfiniteTransition(label = "kenBurns")
-    val zoom by drift.animateFloat(
-        initialValue = 1.05f, targetValue = 1.18f,
-        animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "zoom",
-    )
-    AnimatedContent(
-        targetState = app,
-        transitionSpec = { fadeIn(tween(700)) togetherWith fadeOut(tween(700)) },
-        label = "backdrop",
-        modifier = Modifier.fillMaxSize(),
-    ) { current ->
-        Box(Modifier.fillMaxSize()) {
-            val art = current?.banner ?: current?.icon
-            if (art != null) {
-                // Blur needs Android 12+; older devices get a darker unblurred image.
-                val look = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Modifier.blur(56.dp).alpha(0.85f)
-                } else {
-                    Modifier.alpha(0.4f)
-                }
-                Image(
-                    art, contentDescription = null, contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().scale(zoom).then(look),
-                )
-            }
-            // Cinematic scrims: darken the bottom for the grid and the left for the title.
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.05f),
-                        0.45f to Color.Black.copy(alpha = 0.55f),
-                        0.75f to Color.Black.copy(alpha = 0.92f),
-                        1f to Color.Black,
-                    )
-                )
-            )
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.55f), 0.6f to Color.Transparent)
-                )
+    // Static image (no per-frame animation or live blur) keeps the GPU idle while browsing.
+    Crossfade(targetState = app?.backdrop, animationSpec = tween(250), label = "backdrop") { art ->
+        if (art != null) {
+            Image(
+                art, contentDescription = null, contentScale = ContentScale.Crop,
+                filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize(),
             )
         }
     }
+    // Cinematic scrims: darken the bottom for the grid and the left for the title.
+    Box(Modifier.fillMaxSize().background(BottomScrim))
+    Box(Modifier.fillMaxSize().background(SideScrim))
 }
 
+/** A personal photo, kept sharp; scrims only where text and tiles need contrast. */
 @Composable
-private fun TopShelf(app: LauncherApp?) {
-    Box(Modifier.fillMaxWidth().height(330.dp)) {
+private fun WallpaperBackdrop(wallpaper: ImageBitmap) {
+    // TopCenter keeps faces (usually in the upper half) clear of the tile rows.
+    Image(
+        wallpaper, contentDescription = null, contentScale = ContentScale.Crop,
+        alignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize(),
+    )
+    Box(Modifier.fillMaxSize().background(WallpaperScrim))
+    Box(Modifier.fillMaxSize().background(CornerScrim))
+}
+
+// Darkens the top-left corner behind the Top Shelf title, even over bright photos.
+private val CornerScrim = Brush.radialGradient(
+    0f to Color.Black.copy(alpha = 0.6f), 1f to Color.Transparent, center = Offset.Zero, radius = 1300f,
+)
+private val TextShadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 2f), blurRadius = 12f)
+private val WallpaperScrim = Brush.verticalGradient(
+    0f to Color.Black.copy(alpha = 0.6f),
+    0.32f to Color.Transparent,
+    0.5f to Color.Transparent,
+    0.75f to Color.Black.copy(alpha = 0.55f),
+    1f to Color.Black.copy(alpha = 0.85f),
+)
+private val BottomScrim = Brush.verticalGradient(
+    0f to Color.Black.copy(alpha = 0.1f),
+    0.4f to Color.Black.copy(alpha = 0.5f),
+    0.7f to Color.Black.copy(alpha = 0.88f),
+    1f to Color.Black,
+)
+private val SideScrim = Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.55f), 0.6f to Color.Transparent)
+private val TileSheen = Brush.linearGradient(
+    0f to Color.White.copy(alpha = 0.28f),
+    0.45f to Color.White.copy(alpha = 0.04f),
+    1f to Color.Transparent,
+)
+private val PlaceholderFill = Brush.verticalGradient(listOf(Color(0xFF3A3A3C), Color(0xFF1C1C1E)))
+
+@Composable
+private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(ShelfHeight)) {
         AnimatedContent(
             targetState = app,
-            transitionSpec = { fadeIn(tween(500, delayMillis = 150)) togetherWith fadeOut(tween(250)) },
+            transitionSpec = { fadeIn(tween(200, delayMillis = 60)) togetherWith fadeOut(tween(120)) },
             label = "topShelf",
-            modifier = Modifier.align(Alignment.BottomStart).padding(bottom = 36.dp),
+            modifier = Modifier.align(Alignment.TopStart).padding(top = 40.dp),
         ) { current ->
             if (current != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -180,22 +190,52 @@ private fun TopShelf(app: LauncherApp?) {
                         Text(
                             text = current.label,
                             style = TextStyle(
-                                color = Color.White, fontSize = 56.sp,
-                                fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp,
+                                color = Color.White, fontSize = 52.sp,
+                                fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp, shadow = TextShadow,
                             ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "Açmak için OK tuşuna basın",
-                            style = TextStyle(color = Secondary, fontSize = 18.sp, letterSpacing = 0.3.sp),
+                            style = TextStyle(color = Secondary, fontSize = 18.sp, letterSpacing = 0.3.sp, shadow = TextShadow),
                         )
                     }
                 }
             }
         }
+        AssistantButton(onAssistant, Modifier.align(Alignment.BottomEnd).padding(bottom = 4.dp))
     }
 }
+
+/** Opens the TV's AI assistant (Gemini / Google Assistant); reached with D-pad Up from the tiles. */
+@Composable
+private fun AssistantButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val pill = RoundedCornerShape(50)
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = ClickableSurfaceDefaults.shape(pill),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.White.copy(alpha = 0.14f),
+            contentColor = Color.White,
+            focusedContainerColor = Color.White,
+            focusedContentColor = Color.Black,
+        ),
+        border = ClickableSurfaceDefaults.border(
+            border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)), shape = pill),
+        ),
+    ) {
+        Row(Modifier.padding(horizontal = 22.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("✦", style = TextStyle(brush = AssistantGradient, fontSize = 20.sp))
+            Spacer(Modifier.width(10.dp))
+            Text("Yapay Zekâ Asistanı", style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium))
+        }
+    }
+}
+
+private val AssistantGradient = Brush.linearGradient(listOf(Color(0xFF4F8BFF), Color(0xFFB36BFF), Color(0xFFFF6B9A)))
 
 @Composable
 private fun AppIcon(icon: ImageBitmap, size: Int) {
@@ -203,14 +243,17 @@ private fun AppIcon(icon: ImageBitmap, size: Int) {
         Modifier.size(size.dp).clip(RoundedCornerShape((size * 0.22f).dp)).background(Color.White.copy(alpha = 0.12f)),
         contentAlignment = Alignment.Center,
     ) {
-        Image(icon, contentDescription = null, modifier = Modifier.fillMaxSize().padding((size * 0.12f).dp))
+        Image(
+            icon, contentDescription = null, filterQuality = FilterQuality.High,
+            modifier = Modifier.fillMaxSize().padding((size * 0.12f).dp),
+        )
     }
 }
 
 @Composable
 private fun AppTile(app: LauncherApp, onFocus: () -> Unit, onClick: () -> Unit, modifier: Modifier = Modifier) {
     var isFocused by remember { mutableStateOf(false) }
-    val focus by animateFloatAsState(if (isFocused) 1f else 0f, tween(220), label = "focus")
+    val focus by animateFloatAsState(if (isFocused) 1f else 0f, tween(140), label = "focus")
 
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
@@ -234,28 +277,18 @@ private fun AppTile(app: LauncherApp, onFocus: () -> Unit, onClick: () -> Unit, 
             ),
         ) {
             if (app.banner != null) {
-                Image(app.banner, contentDescription = app.label, contentScale = ContentScale.Crop,
+                Image(app.banner, contentDescription = app.label, contentScale = ContentScale.Crop, filterQuality = FilterQuality.High,
                     modifier = Modifier.fillMaxSize())
             } else {
                 Box(
-                    Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(listOf(Color(0xFF3A3A3C), Color(0xFF1C1C1E)))
-                    ),
+                    Modifier.fillMaxSize().background(PlaceholderFill),
                     contentAlignment = Alignment.Center,
                 ) { AppIcon(app.icon, size = 72) }
             }
             // Glass highlight (tvOS "sheen"): a soft diagonal light across the focused tile.
-            Box(
-                Modifier.fillMaxSize().alpha(focus).background(
-                    Brush.linearGradient(
-                        0f to Color.White.copy(alpha = 0.28f),
-                        0.45f to Color.White.copy(alpha = 0.04f),
-                        1f to Color.Transparent,
-                    )
-                )
-            )
+            Box(Modifier.fillMaxSize().alpha(focus).background(TileSheen))
             // Unfocused tiles sit slightly back so the focused one pops.
-            Box(Modifier.fillMaxSize().alpha(1f - focus).background(Color.Black.copy(alpha = 0.22f)))
+            Box(Modifier.fillMaxSize().alpha(1f - focus).background(Color.Black.copy(alpha = 0.12f)))
         }
         // Like tvOS, the name only appears under the focused tile.
         Text(
@@ -263,7 +296,7 @@ private fun AppTile(app: LauncherApp, onFocus: () -> Unit, onClick: () -> Unit, 
             style = TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 18.dp).alpha(focus),
+            modifier = Modifier.padding(top = 12.dp).alpha(focus),
         )
     }
 }
@@ -279,11 +312,11 @@ private fun StatusBar(modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.End) {
         Text(
             text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now),
-            style = TextStyle(color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Light, letterSpacing = 0.5.sp),
+            style = TextStyle(color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Light, letterSpacing = 0.5.sp, shadow = TextShadow),
         )
         Text(
             text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(now),
-            style = TextStyle(color = Secondary, fontSize = 16.sp, fontWeight = FontWeight.Medium),
+            style = TextStyle(color = Secondary, fontSize = 16.sp, fontWeight = FontWeight.Medium, shadow = TextShadow),
         )
     }
 }
