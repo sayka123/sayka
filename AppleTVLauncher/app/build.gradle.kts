@@ -12,13 +12,16 @@ android {
         applicationId = "com.sayka.appletvlauncher"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 optimizes Compose heavily; noticeably smoother on low-end TV chips.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             // Debug-signed so the release APK can be sideloaded without a keystore.
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -47,6 +50,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.core:core-ktx:1.15.0")
+    // Installs the baseline profiles shipped with Compose so startup and scrolling run precompiled.
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     // Screenshot test of the home screen (renders on the JVM, no device needed).
     testImplementation("junit:junit:4.13.2")
