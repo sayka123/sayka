@@ -8,6 +8,7 @@ final class PhoneSceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
         let window = UIWindow(windowScene: windowScene)
         window.rootViewController = UINavigationController(rootViewController: VideoListViewController())
+        window.overrideUserInterfaceStyle = .dark // Apple TV look is always dark
         window.makeKeyAndVisible()
         self.window = window
     }
