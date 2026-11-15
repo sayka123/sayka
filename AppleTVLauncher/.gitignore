@@ -6,3 +6,4 @@ local.properties
 
 # Personal wallpaper: bundled only in private builds, never published.
 app/src/main/assets/wallpaper.jpg
+.kotlin/
