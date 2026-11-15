@@ -4,6 +4,8 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Android 11+ package visibility: lets us list the TV apps installed on the device. -->
     <queries>
         <intent>

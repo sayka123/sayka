@@ -95,7 +95,9 @@ fun HomeScreen(
     apps: List<LauncherApp>?,
     onOpen: (LauncherApp) -> Unit,
     wallpaper: ImageBitmap? = null,
+    weather: Weather? = null,
     onAssistant: () -> Unit = {},
+    onSetHome: () -> Unit = {},
     onReorder: (List<String>) -> Unit = {},
 ) {
     var focused by remember { mutableStateOf<LauncherApp?>(null) }
@@ -166,8 +168,16 @@ fun HomeScreen(
             }
         }
 
-        StatusBar(Modifier.align(Alignment.TopEnd).padding(top = 36.dp, end = EdgeInset))
+        StatusBar(weather, Modifier.align(Alignment.TopEnd).padding(top = 36.dp, end = EdgeInset))
         HintsBar(Modifier.align(Alignment.BottomStart).padding(start = EdgeInset, bottom = 20.dp))
+        // One-tap shortcut to the system screen that makes Gary TV the TV's home app.
+        PillButton(
+            glyph = "⌂",
+            label = "Ana ekran yap",
+            glyphBrush = null,
+            onClick = onSetHome,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = EdgeInset, bottom = 14.dp),
+        )
     }
 }
 
@@ -239,6 +249,9 @@ private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit, moving: Boolean
                     AppIcon(current.icon, size = 72)
                     Spacer(Modifier.width(24.dp))
                     Column {
+                        // AI bot sits at the very top of the shelf, above the title.
+                        AssistantButton(onAssistant)
+                        Spacer(Modifier.height(12.dp))
                         Text(
                             text = "Molla ailesi hoş geldiniz",
                             style = TextStyle(color = Secondary, fontSize = 16.sp, letterSpacing = 0.4.sp, shadow = TextShadow),
@@ -260,13 +273,29 @@ private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit, moving: Boolean
                 }
             }
         }
-        AssistantButton(onAssistant, Modifier.align(Alignment.BottomEnd).padding(bottom = 4.dp))
     }
 }
 
 /** Opens the TV's AI assistant (Gemini / Google Assistant); reached with D-pad Up from the tiles. */
 @Composable
 private fun AssistantButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    PillButton(
+        glyph = "✦",
+        label = "Yapay Zekâ Asistanı",
+        glyphBrush = AssistantGradient,
+        onClick = onClick,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun PillButton(
+    glyph: String,
+    label: String,
+    glyphBrush: Brush?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val pill = RoundedCornerShape(50)
     Surface(
         onClick = onClick,
@@ -284,9 +313,9 @@ private fun AssistantButton(onClick: () -> Unit, modifier: Modifier = Modifier) 
         ),
     ) {
         Row(Modifier.padding(horizontal = 22.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("✦", style = TextStyle(brush = AssistantGradient, fontSize = 20.sp))
+            Text(glyph, style = TextStyle(brush = glyphBrush, fontSize = 20.sp))
             Spacer(Modifier.width(10.dp))
-            Text("Yapay Zekâ Asistanı", style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium))
+            Text(label, style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium))
         }
     }
 }
@@ -384,7 +413,7 @@ private fun AppTile(
 }
 
 @Composable
-private fun StatusBar(modifier: Modifier = Modifier) {
+private fun StatusBar(weather: Weather?, modifier: Modifier = Modifier) {
     val now by produceState(initialValue = Date()) {
         while (true) {
             delay(1_000L * (60 - (System.currentTimeMillis() / 1000) % 60))
@@ -399,6 +428,34 @@ private fun StatusBar(modifier: Modifier = Modifier) {
         Text(
             text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(now),
             style = TextStyle(color = Secondary, fontSize = 16.sp, fontWeight = FontWeight.Medium, shadow = TextShadow),
+        )
+        Spacer(Modifier.height(14.dp))
+        WeatherCard(weather)
+    }
+}
+
+/** Right-hand live weather for Tekirdağ / Süleymanpaşa. */
+@Composable
+private fun WeatherCard(weather: Weather?, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.End) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = weather?.glyph ?: "☁",
+                style = TextStyle(fontSize = 30.sp, shadow = TextShadow),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = weather?.let { "${it.celsius}°" } ?: "--°",
+                style = TextStyle(color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Light, shadow = TextShadow),
+            )
+        }
+        Text(
+            text = weather?.label ?: "Hava durumu yükleniyor",
+            style = TextStyle(color = Secondary, fontSize = 16.sp, shadow = TextShadow),
+        )
+        Text(
+            text = "Tekirdağ / Süleymanpaşa",
+            style = TextStyle(color = Secondary, fontSize = 14.sp, shadow = TextShadow),
         )
     }
 }

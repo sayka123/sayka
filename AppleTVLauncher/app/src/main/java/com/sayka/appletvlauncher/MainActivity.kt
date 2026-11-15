@@ -4,6 +4,7 @@ import android.app.ActivityOptions
 import android.app.SearchManager
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -20,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
@@ -38,6 +40,13 @@ class MainActivity : ComponentActivity() {
             val wallpaper by produceState<ImageBitmap?>(null) {
                 value = withContext(Dispatchers.IO) { AppRepository.loadWallpaper(context) }
             }
+            // Refreshed every 15 minutes; a failed fetch keeps the last reading on screen.
+            val weather by produceState<Weather?>(null) {
+                while (true) {
+                    WeatherRepository.load()?.let { value = it }
+                    delay(15 * 60 * 1000L)
+                }
+            }
 
             // Reload on every return to home so installed/removed apps show up (art is cached).
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { reloads++ }
@@ -51,7 +60,9 @@ class MainActivity : ComponentActivity() {
                 apps = apps,
                 onOpen = { app -> launch(app.launchIntent) },
                 wallpaper = wallpaper,
+                weather = weather,
                 onAssistant = ::openAssistant,
+                onSetHome = ::openHomeSettings,
                 onReorder = { packages ->
                     AppOrder.save(context, packages)
                     val rank = packages.withIndex().associate { it.value to it.index }
@@ -92,6 +103,17 @@ class MainActivity : ComponentActivity() {
             Intent(Intent.ACTION_VOICE_COMMAND),
             Intent(SearchManager.INTENT_ACTION_GLOBAL_SEARCH),
             Intent(Intent.ACTION_WEB_SEARCH),
+        ).firstOrNull { launch(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
+    /**
+     * Opens the system screen where Gary TV is chosen as the TV's home app. Only the user can
+     * confirm it there; once chosen, the TV boots straight into this launcher.
+     */
+    private fun openHomeSettings() {
+        listOf(
+            Intent(Settings.ACTION_HOME_SETTINGS),
+            Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS),
         ).firstOrNull { launch(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 }
