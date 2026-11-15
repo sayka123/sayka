@@ -1,8 +1,9 @@
 (function () {
   const LIVE_SOURCES = [
     { code: "tr", label: "🇹🇷 Türkiye", url: "https://iptv-org.github.io/iptv/countries/tr.m3u" },
+    { code: "tur", label: "🗣️ Türkçe (dünya)", url: "https://iptv-org.github.io/iptv/languages/tur.m3u" },
     { code: "bg", label: "🇧🇬 Bulgaristan", url: "https://iptv-org.github.io/iptv/countries/bg.m3u" },
-    { code: "bein", label: "⚽ beIN Sports", url: "https://iptv-org.github.io/iptv/categories/sports.m3u", only: /bein/i },
+    { code: "sport", label: "⚽ Spor (dünya)", url: "https://iptv-org.github.io/iptv/categories/sports.m3u" },
   ];
   // SHA-256 of "gary:lord" so the credentials are not stored in plain text.
   const LOGIN_HASH = "0a7393790866dba8be60c34dbcd96d8e57cd499fab9aa05c226d20fe18a84d63";
