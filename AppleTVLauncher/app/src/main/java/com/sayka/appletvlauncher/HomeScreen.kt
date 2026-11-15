@@ -74,11 +74,11 @@ import java.util.Locale
 private val TileShape = RoundedCornerShape(16.dp)
 private val TileGray = Color(0xFF1C1C1E)
 private val Secondary = Color.White.copy(alpha = 0.78f)
-private val EdgeInset = 64.dp
 
-// Sized so the Top Shelf plus two full rows of tiles fit a 1080p (960x540dp) TV screen.
-private val ShelfHeight = 250.dp
-private const val Columns = 5
+// TV safe area: keeps everything clear of a 50" panel's overscan on 1080p (960x540dp).
+private val EdgeInset = 48.dp
+private val ShelfHeight = 200.dp
+private const val Columns = 6
 
 /**
  * Apple TV style home: a cinematic Top Shelf for the focused app (its ambient
@@ -123,9 +123,9 @@ fun HomeScreen(
                     }
                     true
                 },
-                contentPadding = PaddingValues(start = EdgeInset, end = EdgeInset, bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(36.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
+                contentPadding = PaddingValues(start = EdgeInset, end = EdgeInset, bottom = 56.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) { TopShelf(current, onAssistant, moving != null) }
                 itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
@@ -160,8 +160,19 @@ fun HomeScreen(
             }
         }
 
-        StatusBar(Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = EdgeInset))
+        StatusBar(Modifier.align(Alignment.TopEnd).padding(top = 36.dp, end = EdgeInset))
+        HintsBar(Modifier.align(Alignment.BottomStart).padding(start = EdgeInset, bottom = 20.dp))
     }
+}
+
+/** Remote legend along the bottom, the way a TV home screen explains its own controls. */
+@Composable
+private fun HintsBar(modifier: Modifier = Modifier) {
+    Text(
+        text = "◀ ▶ ▲ ▼  Gezin     OK  Aç     OK (basılı)  Taşı     ✦  Asistan",
+        style = TextStyle(color = Secondary, fontSize = 15.sp, letterSpacing = 0.4.sp, shadow = TextShadow),
+        modifier = modifier,
+    )
 }
 
 /** A personal photo, kept sharp; scrims only where text and tiles need contrast. */
@@ -209,6 +220,10 @@ private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit, moving: Boolean
                     AppIcon(current.icon, size = 72)
                     Spacer(Modifier.width(24.dp))
                     Column {
+                        Text(
+                            text = "Molla ailesi hoş geldiniz",
+                            style = TextStyle(color = Secondary, fontSize = 16.sp, letterSpacing = 0.4.sp, shadow = TextShadow),
+                        )
                         Text(
                             text = current.label,
                             style = TextStyle(
@@ -319,7 +334,7 @@ private fun AppTile(
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
                     filterQuality = FilterQuality.High,
-                    modifier = Modifier.fillMaxSize(0.62f).clip(RoundedCornerShape(18.dp)),
+                    modifier = Modifier.fillMaxSize(0.5f).clip(RoundedCornerShape(12.dp)),
                 )
             }
             // Glass highlight (tvOS "sheen"): a soft diagonal light across the focused tile.
@@ -330,7 +345,7 @@ private fun AppTile(
         // Like tvOS, the name only appears under the focused tile.
         Text(
             text = app.label,
-            style = TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium),
+            style = TextStyle(color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp).alpha(if (moving) 1f else focus),
