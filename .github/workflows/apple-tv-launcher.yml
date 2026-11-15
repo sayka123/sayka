@@ -1,0 +1,31 @@
+name: Apple TV Launcher (Android TV) build
+
+on:
+  push:
+    paths: ["AppleTVLauncher/**", ".github/workflows/apple-tv-launcher.yml"]
+  pull_request:
+    paths: ["AppleTVLauncher/**", ".github/workflows/apple-tv-launcher.yml"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: AppleTVLauncher
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build APK and render home screen screenshot
+        run: ./gradlew assembleRelease testDebugUnitTest --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AppleTVLauncher-apk
+          path: AppleTVLauncher/app/build/outputs/apk/release/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-screenshot
+          path: AppleTVLauncher/app/build/screenshots/home.png

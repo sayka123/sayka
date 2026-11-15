@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 TV banner: dark tile with a white "tv" glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path
+        android:fillColor="#1C1C1E"
+        android:pathData="M0,0h320v180h-320z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M110,50h100a10,10 0,0 1,10 10v50a10,10 0,0 1,-10 10h-100a10,10 0,0 1,-10 -10v-50a10,10 0,0 1,10 -10zM115,62v46h90v-46z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M135,128h50v6h-50z" />
+</vector>
