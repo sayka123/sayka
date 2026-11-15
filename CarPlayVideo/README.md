@@ -3,7 +3,7 @@
 CarPlay ekranında video listesi gösteren ve videoyu AirPlay üzerinden araç ekranına gönderen iOS uygulaması.
 
 ## Nasıl çalışır
-- Araç ekranında **Videolar** listesi çıkar; birine dokununca oynatma başlar ve Now Playing ekranı açılır.
+- Araç ekranı Apple TV uygulaması gibi düzenlendi: her kategori için yana dizilmiş 16:9 afişlerden oluşan bir raf var. Afişe dokununca oynatma başlar ve Now Playing ekranı açılır; raf başlığına dokununca o kategorinin tam listesi açılır. (CarPlay yalnızca Apple'ın hazır şablonlarına izin verir; bu, Apple TV görünümüne en yakın şablondur.)
 - Görüntü araç ekranına AirPlay ile gider (Apple'ın "video in the car" özelliği, iOS 26+). **Sadece araç parktayken** ve araç bu özelliği destekliyorsa görüntü gelir; aksi halde sistem yalnızca sesi oynatır.
 - Telefonda Apple TV uygulamasına benzeyen koyu temalı bir ekran var: üstte büyük "öne çıkan" afiş, altında kategori başına yatay kaydırılan 16:9 kartlar. Sağ üstteki AirPlay düğmesiyle araç ekranını oradan da seçebilirsiniz.
 

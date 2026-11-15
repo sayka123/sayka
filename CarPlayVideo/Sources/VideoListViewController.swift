@@ -146,13 +146,9 @@ final class VideoListViewController: UICollectionViewController {
 private final class ArtworkView: UIView {
     override class var layerClass: AnyClass { CAGradientLayer.self }
 
-    func configure(seed: String) {
-        // String.hashValue is randomized per launch; use a stable sum so colors don't change.
-        let sum = seed.unicodeScalars.reduce(0) { $0 &+ Int($1.value) &* 31 }
-        let hue = CGFloat(sum % 360) / 360
+    func configure(with video: Video) {
         let gradient = layer as! CAGradientLayer
-        gradient.colors = [UIColor(hue: hue, saturation: 0.75, brightness: 0.75, alpha: 1).cgColor,
-                           UIColor(hue: fmod(hue + 0.12, 1), saturation: 0.85, brightness: 0.3, alpha: 1).cgColor]
+        gradient.colors = Artwork.colors(for: video).map(\.cgColor)
         gradient.startPoint = CGPoint(x: 0, y: 0)
         gradient.endPoint = CGPoint(x: 1, y: 1)
     }
@@ -213,7 +209,7 @@ private final class CardCell: ScalingCell {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     func configure(with video: Video) {
-        artwork.configure(seed: video.id)
+        artwork.configure(with: video)
         titleLabel.text = video.title
         subtitleLabel.text = video.subtitle
     }
@@ -280,7 +276,7 @@ private final class HeroCell: ScalingCell {
     }
 
     func configure(with video: Video) {
-        artwork.configure(seed: video.id)
+        artwork.configure(with: video)
         titleLabel.text = video.title
         subtitleLabel.text = video.subtitle
     }
