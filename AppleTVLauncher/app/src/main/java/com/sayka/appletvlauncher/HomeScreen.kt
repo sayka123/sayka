@@ -77,8 +77,13 @@ private val Secondary = Color.White.copy(alpha = 0.78f)
 
 // TV safe area: keeps everything clear of a 50" panel's overscan on 1080p (960x540dp).
 private val EdgeInset = 48.dp
-private val ShelfHeight = 200.dp
-private const val Columns = 6
+private val ShelfHeight = 210.dp
+private const val Columns = 5
+
+/** Each of the five top-row positions gets its own accent, so the row reads as a set. */
+private val TopRowAccents = listOf(
+    Color(0xFF2F6BFF), Color(0xFFB04BFF), Color(0xFFFF5C7A), Color(0xFF00C2A8), Color(0xFFFFA62B),
+)
 
 /**
  * Apple TV style home: a cinematic Top Shelf for the focused app (its ambient
@@ -131,6 +136,7 @@ fun HomeScreen(
                 itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
                     AppTile(
                         app = app,
+                        accent = TopRowAccents.getOrNull(index),
                         moving = moving == app.packageName,
                         onFocus = { focused = app },
                         onClick = { if (moving != null) moving = null else onOpen(app) },
@@ -204,7 +210,20 @@ private val TileSheen = Brush.linearGradient(
     0.45f to Color.White.copy(alpha = 0.04f),
     1f to Color.Transparent,
 )
-private val TileFill = Brush.verticalGradient(listOf(Color(0xFF111113), Color(0xFF0A0A0C)))
+/** Neutral tile for rows below the first, accent-tinted tile for the top row. */
+private fun tileFill(accent: Color?): Brush = Brush.verticalGradient(
+    listOf(
+        if (accent == null) Color(0xFF26262A) else blend(accent, Color(0xFF0B0B0E)),
+        Color(0xFF0A0A0C),
+    ),
+)
+
+private fun blend(color: Color, over: Color, amount: Float = 0.45f): Color = Color(
+    red = color.red * (1 - amount) + over.red * amount,
+    green = color.green * (1 - amount) + over.green * amount,
+    blue = color.blue * (1 - amount) + over.blue * amount,
+    alpha = 1f,
+)
 
 @Composable
 private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit, moving: Boolean) {
@@ -290,6 +309,7 @@ private fun AppIcon(icon: ImageBitmap, size: Int) {
 @Composable
 private fun AppTile(
     app: LauncherApp,
+    accent: Color?,
     moving: Boolean,
     onFocus: () -> Unit,
     onClick: () -> Unit,
@@ -314,28 +334,38 @@ private fun AppTile(
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f, pressedScale = 1.08f),
             colors = ClickableSurfaceDefaults.colors(containerColor = TileGray, focusedContainerColor = TileGray),
             glow = ClickableSurfaceDefaults.glow(
-                focusedGlow = Glow(elevationColor = Color.White.copy(alpha = 0.22f), elevation = 24.dp),
+                focusedGlow = Glow(elevationColor = (accent ?: Color.White).copy(alpha = 0.45f), elevation = 32.dp),
             ),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), shape = TileShape),
+                border = Border(BorderStroke(0.dp, Color.Transparent), shape = TileShape),
                 focusedBorder = Border(
                     BorderStroke(if (moving) 4.dp else 3.dp, if (moving) Color(0xFFFFD60A) else Color.White),
                     shape = TileShape,
                 ),
             ),
         ) {
-            // Dark tile with the app's icon centered, like tvOS on a black backdrop.
-            Box(
-                Modifier.fillMaxSize().background(TileFill).semantics { contentDescription = app.label },
-                contentAlignment = Alignment.Center,
-            ) {
+            // tvOS-style tile: the app's own wide artwork fills it, so each icon keeps its brand color.
+            if (app.banner != null) {
                 Image(
-                    app.icon,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
+                    app.banner,
+                    contentDescription = app.label,
+                    contentScale = ContentScale.Crop,
                     filterQuality = FilterQuality.High,
-                    modifier = Modifier.fillMaxSize(0.5f).clip(RoundedCornerShape(12.dp)),
+                    modifier = Modifier.fillMaxSize(),
                 )
+            } else {
+                Box(
+                    Modifier.fillMaxSize().background(tileFill(accent)).semantics { contentDescription = app.label },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        app.icon,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        filterQuality = FilterQuality.High,
+                        modifier = Modifier.fillMaxSize(0.7f).clip(RoundedCornerShape(16.dp)),
+                    )
+                }
             }
             // Glass highlight (tvOS "sheen"): a soft diagonal light across the focused tile.
             Box(Modifier.fillMaxSize().alpha(focus).background(TileSheen))
@@ -345,7 +375,7 @@ private fun AppTile(
         // Like tvOS, the name only appears under the focused tile.
         Text(
             text = app.label,
-            style = TextStyle(color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium),
+            style = TextStyle(color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp).alpha(if (moving) 1f else focus),
