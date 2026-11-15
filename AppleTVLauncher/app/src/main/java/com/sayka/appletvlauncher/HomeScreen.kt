@@ -42,6 +42,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -64,13 +69,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val TileShape = RoundedCornerShape(16.dp)
+private val TileShape = RoundedCornerShape(36.dp)
 private val TileGray = Color(0xFF1C1C1E)
 private val Secondary = Color.White.copy(alpha = 0.78f)
 private val EdgeInset = 64.dp
 
 // Sized so the Top Shelf plus two full rows of tiles fit a 1080p (960x540dp) TV screen.
-private val ShelfHeight = 250.dp
+private val ShelfHeight = 148.dp
+private const val Columns = 5
 
 /**
  * Apple TV style home: a cinematic Top Shelf for the focused app (its ambient
@@ -83,8 +89,10 @@ fun HomeScreen(
     onOpen: (LauncherApp) -> Unit,
     wallpaper: ImageBitmap? = null,
     onAssistant: () -> Unit = {},
+    onReorder: (List<String>) -> Unit = {},
 ) {
     var focused by remember { mutableStateOf<LauncherApp?>(null) }
+    var moving by remember { mutableStateOf<String?>(null) }
     val firstTile = remember { FocusRequester() }
     val current = focused ?: apps?.firstOrNull()
 
@@ -93,18 +101,36 @@ fun HomeScreen(
 
         if (apps != null) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(5),
-                modifier = Modifier.fillMaxSize(),
+                columns = GridCells.Fixed(Columns),
+                modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                    val packageName = moving ?: return@onPreviewKeyEvent false
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent true
+                    val delta = when (event.key) {
+                        Key.DirectionLeft -> -1
+                        Key.DirectionRight -> 1
+                        Key.DirectionUp -> -Columns
+                        Key.DirectionDown -> Columns
+                        else -> null
+                    }
+                    when {
+                        delta != null -> AppOrder.shift(apps.map { it.packageName }, packageName, delta)?.let(onReorder)
+                        event.key == Key.DirectionCenter || event.key == Key.Enter -> moving = null
+                        event.key == Key.Back || event.key == Key.Escape -> moving = null
+                    }
+                    true
+                },
                 contentPadding = PaddingValues(start = EdgeInset, end = EdgeInset, bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(36.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
+                horizontalArrangement = Arrangement.spacedBy(28.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                item(span = { GridItemSpan(maxLineSpan) }) { TopShelf(current, onAssistant) }
+                item(span = { GridItemSpan(maxLineSpan) }) { TopShelf(current, onAssistant, moving != null) }
                 itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
                     AppTile(
                         app = app,
+                        moving = moving == app.packageName,
                         onFocus = { focused = app },
-                        onClick = { onOpen(app) },
+                        onClick = { if (moving != null) moving = null else onOpen(app) },
+                        onLongClick = { moving = app.packageName },
                         modifier = if (index == 0) Modifier.focusRequester(firstTile) else Modifier,
                     )
                 }
@@ -173,7 +199,7 @@ private val TileSheen = Brush.linearGradient(
 private val PlaceholderFill = Brush.verticalGradient(listOf(Color(0xFF3A3A3C), Color(0xFF1C1C1E)))
 
 @Composable
-private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit) {
+private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit, moving: Boolean) {
     Box(Modifier.fillMaxWidth().height(ShelfHeight)) {
         AnimatedContent(
             targetState = app,
@@ -196,7 +222,7 @@ private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit) {
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "Açmak için OK tuşuna basın",
+                            text = if (moving) "Yön tuşlarıyla taşıyın, OK ile bırakın" else "Açmak için OK, taşımak için basılı tutun",
                             style = TextStyle(color = Secondary, fontSize = 18.sp, letterSpacing = 0.3.sp, shadow = TextShadow),
                         )
                     }
@@ -250,16 +276,24 @@ private fun AppIcon(icon: ImageBitmap, size: Int) {
 }
 
 @Composable
-private fun AppTile(app: LauncherApp, onFocus: () -> Unit, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun AppTile(
+    app: LauncherApp,
+    moving: Boolean,
+    onFocus: () -> Unit,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var isFocused by remember { mutableStateOf(false) }
     val focus by animateFloatAsState(if (isFocused) 1f else 0f, tween(140), label = "focus")
 
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             onClick = onClick,
+            onLongClick = onLongClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f)
+                .aspectRatio(1f)
                 .onFocusChanged {
                     isFocused = it.isFocused
                     if (it.isFocused) onFocus()
@@ -272,18 +306,19 @@ private fun AppTile(app: LauncherApp, onFocus: () -> Unit, onClick: () -> Unit, 
             ),
             border = ClickableSurfaceDefaults.border(
                 border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), shape = TileShape),
-                focusedBorder = Border(BorderStroke(2.dp, Color.White.copy(alpha = 0.55f)), shape = TileShape),
+                focusedBorder = Border(
+                    BorderStroke(if (moving) 4.dp else 3.dp, if (moving) Color(0xFFFFD60A) else Color.White),
+                    shape = TileShape,
+                ),
             ),
         ) {
-            if (app.banner != null) {
-                Image(app.banner, contentDescription = app.label, contentScale = ContentScale.Crop, filterQuality = FilterQuality.High,
-                    modifier = Modifier.fillMaxSize())
-            } else {
-                Box(
-                    Modifier.fillMaxSize().background(PlaceholderFill),
-                    contentAlignment = Alignment.Center,
-                ) { AppIcon(app.icon, size = 72) }
-            }
+            Image(
+                app.icon,
+                contentDescription = app.label,
+                contentScale = ContentScale.Crop,
+                filterQuality = FilterQuality.High,
+                modifier = Modifier.fillMaxSize(),
+            )
             // Glass highlight (tvOS "sheen"): a soft diagonal light across the focused tile.
             Box(Modifier.fillMaxSize().alpha(focus).background(TileSheen))
             // Unfocused tiles sit slightly back so the focused one pops.
@@ -295,7 +330,7 @@ private fun AppTile(app: LauncherApp, onFocus: () -> Unit, onClick: () -> Unit, 
             style = TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 12.dp).alpha(focus),
+            modifier = Modifier.padding(top = 6.dp).alpha(if (moving) 1f else focus),
         )
     }
 }

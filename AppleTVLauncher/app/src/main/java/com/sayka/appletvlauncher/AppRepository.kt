@@ -33,7 +33,7 @@ object AppRepository {
     // Rendered at 2x the largest on-screen size (focused tile, Top Shelf icon) so art stays crisp on 1080p/4K.
     private const val BannerWidth = 640
     private const val BannerHeight = 360
-    private const val IconSize = 288
+    private const val IconSize = 512
 
     // Decoding banners is the slow part of a reload; reuse them until the app is updated.
     private val artCache = ConcurrentHashMap<String, Art>()
@@ -69,7 +69,7 @@ object AppRepository {
                 icon = art.icon,
                 backdrop = art.backdrop,
             )
-        }.sortedBy { it.label.lowercase() }
+        }.sortedBy { it.label.lowercase() }.let { AppOrder.apply(context, it) }
     }
 
     /** Two filtered downscales give a smooth blur for free on every Android version. */

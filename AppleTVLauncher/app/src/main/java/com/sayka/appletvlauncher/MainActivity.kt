@@ -52,6 +52,11 @@ class MainActivity : ComponentActivity() {
                 onOpen = { app -> launch(app.launchIntent) },
                 wallpaper = wallpaper,
                 onAssistant = ::openAssistant,
+                onReorder = { packages ->
+                    AppOrder.save(context, packages)
+                    val rank = packages.withIndex().associate { it.value to it.index }
+                    apps = apps?.sortedBy { rank[it.packageName] ?: Int.MAX_VALUE }
+                },
             )
         }
     }
