@@ -200,7 +200,7 @@ private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit, moving: Boolean
     Box(Modifier.fillMaxWidth().height(ShelfHeight)) {
         AnimatedContent(
             targetState = app,
-            transitionSpec = { fadeIn(tween(200, delayMillis = 60)) togetherWith fadeOut(tween(120)) },
+            transitionSpec = { fadeIn(tween(120, delayMillis = 30)) togetherWith fadeOut(tween(70)) },
             label = "topShelf",
             modifier = Modifier.align(Alignment.TopStart).padding(top = 40.dp),
         ) { current ->
@@ -282,7 +282,7 @@ private fun AppTile(
     modifier: Modifier = Modifier,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val focus by animateFloatAsState(if (isFocused) 1f else 0f, tween(140), label = "focus")
+    val focus by animateFloatAsState(if (isFocused) 1f else 0f, tween(80), label = "focus")
 
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
@@ -309,10 +309,19 @@ private fun AppTile(
                 ),
             ),
         ) {
-            // Plain dark tile, no app artwork inside.
+            // Dark tile with the app's icon centered, like tvOS on a black backdrop.
             Box(
                 Modifier.fillMaxSize().background(TileFill).semantics { contentDescription = app.label },
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    app.icon,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    filterQuality = FilterQuality.High,
+                    modifier = Modifier.fillMaxSize(0.62f).clip(RoundedCornerShape(18.dp)),
+                )
+            }
             // Glass highlight (tvOS "sheen"): a soft diagonal light across the focused tile.
             Box(Modifier.fillMaxSize().alpha(focus).background(TileSheen))
             // Unfocused tiles sit slightly back so the focused one pops.
