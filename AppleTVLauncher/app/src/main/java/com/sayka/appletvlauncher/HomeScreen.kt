@@ -121,6 +121,10 @@ fun HomeScreen(
 /** Full-screen soft copy of the focused app's art, so its colors tint the whole UI. */
 @Composable
 private fun AmbientBackdrop(app: LauncherApp?) {
+    // Colored base so the screen is never flat black when an app has no artwork.
+    Box(Modifier.fillMaxSize().background(BaseNight))
+    Box(Modifier.fillMaxSize().background(GlowBlue))
+    Box(Modifier.fillMaxSize().background(GlowViolet))
     // Static image (no per-frame animation or live blur) keeps the GPU idle while browsing.
     Crossfade(targetState = app?.backdrop, animationSpec = tween(250), label = "backdrop") { art ->
         if (art != null) {
@@ -160,10 +164,21 @@ private val WallpaperScrim = Brush.verticalGradient(
     1f to Color.Black.copy(alpha = 0.85f),
 )
 private val BottomScrim = Brush.verticalGradient(
-    0f to Color.Black.copy(alpha = 0.1f),
-    0.4f to Color.Black.copy(alpha = 0.5f),
-    0.7f to Color.Black.copy(alpha = 0.88f),
-    1f to Color.Black,
+    0f to Color.Black.copy(alpha = 0.05f),
+    0.45f to Color.Black.copy(alpha = 0.3f),
+    1f to Color.Black.copy(alpha = 0.6f),
+)
+private val BaseNight = Brush.linearGradient(
+    listOf(Color(0xFF0B1A3A), Color(0xFF1B1446), Color(0xFF0A2A44)),
+    start = Offset.Zero, end = Offset.Infinite,
+)
+private val GlowBlue = Brush.radialGradient(
+    listOf(Color(0xFF2F6BFF).copy(alpha = 0.55f), Color.Transparent),
+    center = Offset(1500f, 150f), radius = 1100f,
+)
+private val GlowViolet = Brush.radialGradient(
+    listOf(Color(0xFFB04BFF).copy(alpha = 0.4f), Color.Transparent),
+    center = Offset(250f, 1000f), radius = 1000f,
 )
 private val SideScrim = Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.55f), 0.6f to Color.Transparent)
 private val TileSheen = Brush.linearGradient(
