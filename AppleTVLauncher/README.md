@@ -1,4 +1,4 @@
-# Apple TV Görünümü (Android TV)
+# Gary TV (Android TV)
 
 Android TV / Google TV için Apple TV ana ekranına benzeyen bir ana ekran (launcher) uygulaması.
 
@@ -15,10 +15,10 @@ Kendiniz derlemek için (JDK 17 ve Android SDK gerekir): `cd AppleTVLauncher && 
 1. TV'de **Ayarlar → Cihaz Tercihleri → Hakkında → Yapı**'ya 7 kez basıp geliştirici seçeneklerini açın, ardından **USB/Ağ hata ayıklama**'yı açın.
 2. Bilgisayardan: `adb connect <TV-IP-adresi>` ve `adb install app-release.apk`
    (ya da APK'yı "Downloader" / "Send Files to TV" uygulamasıyla TV'ye atıp kurun).
-3. Uygulamayı TV'nin uygulamalar listesinden **Apple TV Görünümü** adıyla açabilirsiniz.
+3. Uygulamayı TV'nin uygulamalar listesinden **Gary TV** adıyla açabilirsiniz.
 
 ## Ana ekran olarak ayarlama
-- **Eski Android TV**: Home tuşuna basınca hangi ana ekranın kullanılacağı sorulur; **Apple TV Görünümü → Her zaman** seçin.
+- **Eski Android TV**: Home tuşuna basınca hangi ana ekranın kullanılacağı sorulur; **Gary TV → Her zaman** seçin.
 - **Google TV / yeni Android TV**: sistem başka ana ekran seçtirmez. İsterseniz Google'ın ana ekranını kapatabilirsiniz:
   `adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx`
   Geri almak için: `adb shell pm enable com.google.android.apps.tv.launcherx`
