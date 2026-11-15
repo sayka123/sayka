@@ -19,6 +19,13 @@ Kendiniz derlemek için (JDK 17 ve Android SDK gerekir): `cd AppleTVLauncher && 
 
 ## Ana ekran olarak ayarlama
 - **Eski Android TV**: Home tuşuna basınca hangi ana ekranın kullanılacağı sorulur; **Gary TV → Her zaman** seçin.
+
+## Sesli komutlar
+TV açılırken mikrofon izni istenir; izin verirseniz mikrofon sürekli dinler:
+- **"geri"** — geri tuşu (tüm uygulamalarda çalışır; Ayarlar → Erişilebilirlik → Gary TV servisini bir kez açın)
+- **"ileri" / "sonraki"** — ana ekranda bir sonraki uygulamaya geçer
+- **"ses kıs" / "sesi kapat"** — sesi azaltır
+- **"ses aç"** — sesi yükseltir
 - **Google TV / yeni Android TV**: sistem başka ana ekran seçtirmez. İsterseniz Google'ın ana ekranını kapatabilirsiniz:
   `adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx`
   Geri almak için: `adb shell pm enable com.google.android.apps.tv.launcherx`

@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -69,13 +71,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val TileShape = RoundedCornerShape(36.dp)
+private val TileShape = RoundedCornerShape(16.dp)
 private val TileGray = Color(0xFF1C1C1E)
 private val Secondary = Color.White.copy(alpha = 0.78f)
 private val EdgeInset = 64.dp
 
 // Sized so the Top Shelf plus two full rows of tiles fit a 1080p (960x540dp) TV screen.
-private val ShelfHeight = 148.dp
+private val ShelfHeight = 250.dp
 private const val Columns = 5
 
 /**
@@ -94,10 +96,12 @@ fun HomeScreen(
     var focused by remember { mutableStateOf<LauncherApp?>(null) }
     var moving by remember { mutableStateOf<String?>(null) }
     val firstTile = remember { FocusRequester() }
+    val tileFocus = remember { mutableMapOf<String, FocusRequester>() }
     val current = focused ?: apps?.firstOrNull()
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (wallpaper != null) WallpaperBackdrop(wallpaper) else AmbientBackdrop(current)
+        // Backdrop is always black; only a personal photo (if bundled) shows through.
+        if (wallpaper != null) WallpaperBackdrop(wallpaper)
 
         if (apps != null) {
             LazyVerticalGrid(
@@ -120,8 +124,8 @@ fun HomeScreen(
                     true
                 },
                 contentPadding = PaddingValues(start = EdgeInset, end = EdgeInset, bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(36.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) { TopShelf(current, onAssistant, moving != null) }
                 itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
@@ -131,34 +135,33 @@ fun HomeScreen(
                         onFocus = { focused = app },
                         onClick = { if (moving != null) moving = null else onOpen(app) },
                         onLongClick = { moving = app.packageName },
-                        modifier = if (index == 0) Modifier.focusRequester(firstTile) else Modifier,
+                        modifier = if (index == 0) Modifier.focusRequester(firstTile)
+                        else Modifier.focusRequester(tileFocus.getOrPut(app.packageName) { FocusRequester() }),
                     )
                 }
             }
             LaunchedEffect(apps.isNotEmpty()) {
                 if (apps.isNotEmpty()) runCatching { firstTile.requestFocus() }
             }
+            // Voice commands: "ileri"/"sonraki" moves focus forward, "geri" moves it back.
+            LaunchedEffect(Unit) {
+                VoiceBus.events.collect { command ->
+                    val list = apps ?: return@collect
+                    if (list.isEmpty()) return@collect
+                    val delta = when (command) {
+                        VoiceCommand.NEXT -> 1
+                        VoiceCommand.BACK -> -1
+                        else -> return@collect
+                    }
+                    val idx = list.indexOfFirst { it.packageName == focused?.packageName }
+                    val target = list.getOrNull(if (idx < 0) 0 else (idx + delta).coerceIn(0, list.lastIndex))
+                    if (target != null) tileFocus[target.packageName]?.requestFocus()
+                }
+            }
         }
 
         StatusBar(Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = EdgeInset))
     }
-}
-
-/** Full-screen soft copy of the focused app's art, so its colors tint the whole UI. */
-@Composable
-private fun AmbientBackdrop(app: LauncherApp?) {
-    // Static image (no per-frame animation or live blur) keeps the GPU idle while browsing.
-    Crossfade(targetState = app?.backdrop, animationSpec = tween(250), label = "backdrop") { art ->
-        if (art != null) {
-            Image(
-                art, contentDescription = null, contentScale = ContentScale.Crop,
-                filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-    // Cinematic scrims: darken the bottom for the grid and the left for the title.
-    Box(Modifier.fillMaxSize().background(BottomScrim))
-    Box(Modifier.fillMaxSize().background(SideScrim))
 }
 
 /** A personal photo, kept sharp; scrims only where text and tiles need contrast. */
@@ -185,18 +188,12 @@ private val WallpaperScrim = Brush.verticalGradient(
     0.75f to Color.Black.copy(alpha = 0.55f),
     1f to Color.Black.copy(alpha = 0.85f),
 )
-private val BottomScrim = Brush.verticalGradient(
-    0f to Color.Black.copy(alpha = 0.05f),
-    0.45f to Color.Black.copy(alpha = 0.3f),
-    1f to Color.Black.copy(alpha = 0.6f),
-)
-private val SideScrim = Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.55f), 0.6f to Color.Transparent)
 private val TileSheen = Brush.linearGradient(
     0f to Color.White.copy(alpha = 0.28f),
     0.45f to Color.White.copy(alpha = 0.04f),
     1f to Color.Transparent,
 )
-private val PlaceholderFill = Brush.verticalGradient(listOf(Color(0xFF3A3A3C), Color(0xFF1C1C1E)))
+private val TileFill = Brush.verticalGradient(listOf(Color(0xFF111113), Color(0xFF0A0A0C)))
 
 @Composable
 private fun TopShelf(app: LauncherApp?, onAssistant: () -> Unit, moving: Boolean) {
@@ -293,7 +290,7 @@ private fun AppTile(
             onLongClick = onLongClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
+                .aspectRatio(16f / 9f)
                 .onFocusChanged {
                     isFocused = it.isFocused
                     if (it.isFocused) onFocus()
@@ -312,12 +309,9 @@ private fun AppTile(
                 ),
             ),
         ) {
-            Image(
-                app.icon,
-                contentDescription = app.label,
-                contentScale = ContentScale.Crop,
-                filterQuality = FilterQuality.High,
-                modifier = Modifier.fillMaxSize(),
+            // Plain dark tile, no app artwork inside.
+            Box(
+                Modifier.fillMaxSize().background(TileFill).semantics { contentDescription = app.label },
             )
             // Glass highlight (tvOS "sheen"): a soft diagonal light across the focused tile.
             Box(Modifier.fillMaxSize().alpha(focus).background(TileSheen))

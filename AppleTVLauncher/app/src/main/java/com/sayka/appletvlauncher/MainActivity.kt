@@ -5,7 +5,12 @@ import android.app.SearchManager
 import android.content.Intent
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.ComponentActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +36,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) speakWelcome()
+        ensureMicAndStartVoice()
         setContent {
             val context = LocalContext.current
             var apps by remember { mutableStateOf<List<LauncherApp>?>(null) }
@@ -59,6 +65,28 @@ class MainActivity : ComponentActivity() {
                 },
             )
         }
+    }
+
+    private fun ensureMicAndStartVoice() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            VoiceCommandsService.start(this)
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC)
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_MIC && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            VoiceCommandsService.start(this)
+        }
+    }
+
+    companion object {
+        private const val REQ_MIC = 7
     }
 
     override fun onDestroy() {
