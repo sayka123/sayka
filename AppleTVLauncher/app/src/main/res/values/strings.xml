@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Gary TV</string>
+    <string name="accessibility_description">"Geri" sesli komutunun tüm uygulamalarda geri tuşu gibi çalışmasını sağlar. Ayarlar > Erişilebilirlik bölümünden bir kez açın.</string>
 </resources>
