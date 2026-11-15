@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gary IPTV</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+</head>
+<body>
+  <form id="login">
+    <h1>Gary <span>IPTV</span></h1>
+    <input id="user" placeholder="Kullanıcı adı" autocomplete="username" autofocus />
+    <input id="pass" type="password" placeholder="Parola" autocomplete="current-password" />
+    <label><input id="remember" type="checkbox" checked /> Beni hatırla</label>
+    <button>Giriş</button>
+    <div id="loginErr"></div>
+  </form>
+
+  <header>
+    <h1>Gary <span>IPTV</span></h1>
+    <nav id="modes"></nav>
+    <input id="search" type="search" placeholder="Ara…" autocomplete="off" />
+    <button id="addBtn" title="IPTV hesabı veya M3U listesi ekle">+ Hesap ekle</button>
+    <button id="logout" title="Çıkış">Çıkış</button>
+  </header>
+
+  <main>
+    <aside id="side">
+      <nav id="sources"></nav>
+      <nav id="langs"></nav>
+      <nav id="categories"></nav>
+      <div id="count"></div>
+      <ul id="list"></ul>
+    </aside>
+
+    <section id="stage">
+      <video id="video" controls playsinline></video>
+      <div id="overlay">Soldan bir kanal seçin</div>
+      <div id="nowPlaying"></div>
+      <div id="tracks">
+        <select id="audioSel" title="Ses" hidden></select>
+        <select id="subSel" title="Altyazı" hidden></select>
+        <select id="qualitySel" title="Kalite" hidden></select>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="addDialog">
+    <form method="dialog">
+      <h2>IPTV hesabı ekle</h2>
+      <p>Aboneliğini aldığın IPTV sağlayıcısının bilgilerini gir. Canlı TV, film ve diziler otomatik gelir.</p>
+      <h3>Xtream Codes</h3>
+      <input id="xtServer" placeholder="Sunucu (ör. http://sunucu.com:8080)" />
+      <input id="xtUser" placeholder="Kullanıcı adı" autocomplete="off" />
+      <input id="xtPass" type="password" placeholder="Parola" autocomplete="off" />
+      <h3>veya M3U listesi</h3>
+      <input id="m3uUrl" type="url" placeholder="https://…/liste.m3u" />
+      <input id="m3uFile" type="file" accept=".m3u,.m3u8,audio/x-mpegurl" />
+      <div id="addErr"></div>
+      <h3>Ekli hesaplar</h3>
+      <ul id="accounts"></ul>
+      <menu>
+        <button value="cancel">Kapat</button>
+        <button id="addConfirm" value="ok">Ekle</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="m3u.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
