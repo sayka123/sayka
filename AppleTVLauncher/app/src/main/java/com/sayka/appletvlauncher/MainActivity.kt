@@ -4,6 +4,7 @@ import android.app.ActivityOptions
 import android.app.SearchManager
 import android.content.Intent
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -20,10 +21,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
+
+private const val WELCOME_TEXT = "Molla ailesi hoş geldiniz"
 
 class MainActivity : ComponentActivity() {
+    private var tts: TextToSpeech? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) speakWelcome()
         setContent {
             val context = LocalContext.current
             var apps by remember { mutableStateOf<List<LauncherApp>?>(null) }
@@ -45,7 +52,31 @@ class MainActivity : ComponentActivity() {
                 onOpen = { app -> launch(app.launchIntent) },
                 wallpaper = wallpaper,
                 onAssistant = ::openAssistant,
+                onReorder = { packages ->
+                    AppOrder.save(context, packages)
+                    val rank = packages.withIndex().associate { it.value to it.index }
+                    apps = apps?.sortedBy { rank[it.packageName] ?: Int.MAX_VALUE }
+                },
             )
+        }
+    }
+
+    override fun onDestroy() {
+        tts?.shutdown()
+        tts = null
+        super.onDestroy()
+    }
+
+    /** Speaks the family greeting once per launch; silently skipped if no Turkish voice is installed. */
+    private fun speakWelcome() {
+        tts = TextToSpeech(this) { status ->
+            val engine = tts ?: return@TextToSpeech
+            if (status == TextToSpeech.SUCCESS) {
+                val result = engine.setLanguage(Locale("tr", "TR"))
+                if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
+                    engine.speak(WELCOME_TEXT, TextToSpeech.QUEUE_FLUSH, null, "welcome")
+                }
+            }
         }
     }
 
