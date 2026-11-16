@@ -2,7 +2,7 @@
 
 Tarayıcıda çalışan IPTV programı: canlı TV, filmler ve diziler tek yerde.
 
-- **Canlı TV:** Türkiye ve Bulgaristan'ın ücretsiz yayınları ile herkese açık beIN Sports kanalları hazır gelir ([iptv-org](https://github.com/iptv-org/iptv) listelerinden, her açılışta güncellenir). Spor, Haber, Film, Çocuk… kategorileri; arama ve favoriler.
+- **Canlı TV:** Türkiye, Bulgaristan, dünya Türkçe yayınları ve dünya spor kanalları hazır gelir ([iptv-org](https://github.com/iptv-org/iptv) listelerinden, her açılışta güncellenir). Spor, Haber, Film, Çocuk… kategorileri; arama ve favoriler. Tekrarlanan kanallarda en yüksek kaliteli kopya gösterilir.
 - **Sadece çalışan kanallar:** Açılışta tüm ücretsiz kanallar arka planda ~20 saniyede denenir; açılmayanlar gizlenir (🟢 çalışıyor). Aynı kanalın birden çok kalitesi varsa en yüksek olanı kalır; 4K / FHD / HD rozetleriyle gösterilir.
 - **Filmler ve Diziler:** Kendi IPTV aboneliğinizi (Xtream Codes kullanıcı adı/parola ya da M3U linki) eklediğinizde tüm film ve diziler gelir. Birden çok hesap ekleyebilirsiniz; hepsi tek listede birleşir.
 - **🔊 Türkçe Dublaj / 💬 Türkçe Altyazı** filtreleri: Sağlayıcının isim ve kategorilerdeki "DUBLAJ", "ALTYAZILI" vb. etiketlerine göre ayırır.
