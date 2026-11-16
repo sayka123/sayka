@@ -1,8 +1,9 @@
 (function () {
   const LIVE_SOURCES = [
     { code: "tr", label: "🇹🇷 Türkiye", url: "https://iptv-org.github.io/iptv/countries/tr.m3u" },
+    { code: "tur", label: "🗣️ Türkçe (dünya)", url: "https://iptv-org.github.io/iptv/languages/tur.m3u" },
     { code: "bg", label: "🇧🇬 Bulgaristan", url: "https://iptv-org.github.io/iptv/countries/bg.m3u" },
-    { code: "bein", label: "⚽ beIN Sports", url: "https://iptv-org.github.io/iptv/categories/sports.m3u", only: /bein/i },
+    { code: "sport", label: "⚽ Spor (dünya)", url: "https://iptv-org.github.io/iptv/categories/sports.m3u" },
   ];
   // SHA-256 of "gary:lord" so the credentials are not stored in plain text.
   const LOGIN_HASH = "0a7393790866dba8be60c34dbcd96d8e57cd499fab9aa05c226d20fe18a84d63";
@@ -132,10 +133,7 @@
     overlay.textContent = "Kanallar yükleniyor…";
     const accounts = load(LS.xtream, []);
     const sources = [...LIVE_SOURCES];
-    const tasks = LIVE_SOURCES.map(async (s) => {
-      const items = GaryM3U.parseM3U(await fetchText(s.url), s.code);
-      return s.only ? items.filter((c) => s.only.test(c.name)) : items;
-    });
+    const tasks = LIVE_SOURCES.map(async (s) => GaryM3U.parseM3U(await fetchText(s.url), s.code));
     const custom = localStorage.getItem(LS.custom);
     if (custom) {
       sources.push({ code: "my", label: "📺 M3U listem" });
@@ -164,7 +162,9 @@
         const bucket = items[it.kind === "episode" ? "series" : it.kind];
         if (it.kind === "live" && it.id) {
           // Same channel listed in several qualities: keep only the sharpest copy.
-          const dk = it.source + "|" + it.id.split("@")[0];
+          // Lists overlap (for example, Turkish channels also occur in the global sports list).
+          // Use the common tvg id to show just the highest-quality copy to the user.
+          const dk = it.id.split("@")[0];
           const prev = best.get(dk);
           if (prev && prev.height >= it.height) continue;
           if (prev) bucket.splice(bucket.indexOf(prev), 1);
@@ -303,7 +303,8 @@
     if (c.tags.includes("dub")) parts.push("Dublaj");
     if (c.tags.includes("sub")) parts.push("Altyazı");
     if (c.rating) parts.push("★ " + c.rating);
-    if (c.source === "bg") parts.push("Bulgaristan");
+    const origin = st.sources.find((s) => s.code === c.source)?.label;
+    if (origin && c.source !== "tr") parts.push(origin.replace(/^\S+\s/, ""));
     parts.push(...(c.notes || []));
     return parts.join(" · ");
   }
